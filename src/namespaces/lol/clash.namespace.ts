@@ -1,10 +1,10 @@
-import type { ClashPlayerDTO, ClashTeamDTO, ClashTournamentDTO } from '../../dto/lol/clash.dto'
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
-import type { Collection } from '../../entities/collection'
 import { ClashPlayerEntity } from '../../entities/lol/clash-player.entity'
 import { ClashTeamEntity } from '../../entities/lol/clash-team.entity'
 import { ClashTournamentEntity } from '../../entities/lol/clash-tournament.entity'
 import type { Region } from '../../enums/region'
+import type { CollectionQuery } from '../../query/collection-query'
+import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
 
 /**
@@ -12,76 +12,83 @@ import { BaseNamespace } from '../base-namespace'
  */
 export class LolClashNamespace extends BaseNamespace {
   /**
-   * Get a player's active Clash registrations by PUUID.
+   * A player's active Clash registrations by PUUID.
    *
    * @param puuid - The player's PUUID.
    * @param region - The platform region.
    */
-  async playersByPuuid(puuid: string, region: Region): Promise<Collection<ClashPlayerEntity>> {
-    const fetched = await this.executor.request<ClashPlayerDTO[]>(
+  playersByPuuid(puuid: string, region: Region): CollectionQuery<ClashPlayerEntity> {
+    return this.many(
+      ClashPlayerEntity,
       region,
       LOL_ENDPOINTS.clashPlayersByPuuid,
+      this.regionContext(region),
       { pathParams: { puuid } },
     )
-    return this.toCollection(ClashPlayerEntity, fetched, this.regionContext(region))
   }
 
   /**
-   * Get a Clash team by id.
+   * A Clash team by id.
    *
    * @param teamId - The team id.
    * @param region - The platform region.
    */
-  async teamById(teamId: string, region: Region): Promise<ClashTeamEntity> {
-    const fetched = await this.executor.request<ClashTeamDTO>(region, LOL_ENDPOINTS.clashTeamById, {
-      pathParams: { teamId },
-    })
-    return this.toEntity(ClashTeamEntity, fetched, this.regionContext(region))
-  }
-
-  /**
-   * Get active and upcoming Clash tournaments.
-   *
-   * @param region - The platform region.
-   */
-  async tournaments(region: Region): Promise<Collection<ClashTournamentEntity>> {
-    const fetched = await this.executor.request<ClashTournamentDTO[]>(
+  teamById(teamId: string, region: Region): SingleQuery<ClashTeamEntity> {
+    return this.single(
+      ClashTeamEntity,
       region,
-      LOL_ENDPOINTS.clashTournaments,
-    )
-    return this.toCollection(ClashTournamentEntity, fetched, this.regionContext(region))
-  }
-
-  /**
-   * Get the tournament a team is registered for.
-   *
-   * @param teamId - The team id.
-   * @param region - The platform region.
-   */
-  async tournamentByTeam(teamId: string, region: Region): Promise<ClashTournamentEntity> {
-    const fetched = await this.executor.request<ClashTournamentDTO>(
-      region,
-      LOL_ENDPOINTS.clashTournamentByTeam,
+      LOL_ENDPOINTS.clashTeamById,
+      this.regionContext(region),
       { pathParams: { teamId } },
     )
-    return this.toEntity(ClashTournamentEntity, fetched, this.regionContext(region))
   }
 
   /**
-   * Get a Clash tournament by id.
+   * Active and upcoming Clash tournaments.
+   *
+   * @param region - The platform region.
+   */
+  tournaments(region: Region): CollectionQuery<ClashTournamentEntity> {
+    return this.many(
+      ClashTournamentEntity,
+      region,
+      LOL_ENDPOINTS.clashTournaments,
+      this.regionContext(region),
+    )
+  }
+
+  /**
+   * The tournament a team is registered for.
+   *
+   * @param teamId - The team id.
+   * @param region - The platform region.
+   */
+  tournamentByTeam(teamId: string, region: Region): SingleQuery<ClashTournamentEntity> {
+    return this.single(
+      ClashTournamentEntity,
+      region,
+      LOL_ENDPOINTS.clashTournamentByTeam,
+      this.regionContext(region),
+      { pathParams: { teamId } },
+    )
+  }
+
+  /**
+   * A Clash tournament by id.
    *
    * @param tournamentId - The tournament id.
    * @param region - The platform region.
    */
-  async tournamentById(
+  tournamentById(
     tournamentId: number | string,
     region: Region,
-  ): Promise<ClashTournamentEntity> {
-    const fetched = await this.executor.request<ClashTournamentDTO>(
+  ): SingleQuery<ClashTournamentEntity> {
+    return this.single(
+      ClashTournamentEntity,
       region,
       LOL_ENDPOINTS.clashTournamentById,
+      this.regionContext(region),
       { pathParams: { tournamentId } },
     )
-    return this.toEntity(ClashTournamentEntity, fetched, this.regionContext(region))
   }
 }

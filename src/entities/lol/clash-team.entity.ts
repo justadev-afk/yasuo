@@ -1,5 +1,6 @@
 import type { ClashTeamDTO } from '../../dto/lol/clash.dto'
 import type { Region } from '../../enums/region'
+import type { SingleQuery } from '../../query/single-query'
 import { Entity } from '../entity'
 import type { ClashTournamentEntity } from './clash-tournament.entity'
 import type { SummonerRef } from './summoner-ref'
@@ -12,8 +13,8 @@ export class ClashTeamEntity extends Entity<ClashTeamDTO> {
     return this.context.region as Region
   }
 
-  /** Resolve the tournament this team is registered for. */
-  tournament(): Promise<ClashTournamentEntity> {
+  /** The tournament this team is registered for. */
+  tournament(): SingleQuery<ClashTournamentEntity> {
     return this.context.client.lol.clash.tournamentById(this.tournamentId, this.region)
   }
 

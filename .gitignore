@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# MkDocs build output
+site
+
 # code coverage
 coverage
 *.lcov

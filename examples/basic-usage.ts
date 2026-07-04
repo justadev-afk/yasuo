@@ -1,19 +1,18 @@
 /**
  * Compile-checked usage examples for yasuo.
  *
- * This file is **not** meant to run (it makes no assumptions about a live key);
- * it exists so `bun run typecheck` proves that every pattern shown in the README
- * and docs actually compiles against the public API. If an example here breaks,
+ * Not meant to run — it exists so `bun run typecheck` proves every pattern in
+ * the README and docs compiles against the public API. If an example breaks,
  * the docs are wrong — fix both.
  */
 import {
   ApiError,
   Division,
+  type HttpMiddleware,
   LogLevel,
   MatchType,
   NotFoundError,
   RankedQueue,
-  RateLimitError,
   RedisCache,
   type RedisClientLike,
   Region,
@@ -24,11 +23,11 @@ import {
 
 // --- Construction ------------------------------------------------------------
 
-// From a bare key string, or a config object, or the RIOT_API_KEY env var.
+// Proactive rate limiting is OFF by default (reactive 429/503 retries stay on).
 const fromString = new Yasuo('RGAPI-xxxxxxxx')
 const yasuo = new Yasuo({
   key: process.env.RIOT_API_KEY,
-  rateLimit: true,
+  rateLimit: true, // opt in to proactive pacing
   retry: { maxAttempts: 3 },
   cache: true,
   logLevel: LogLevel.INFO,
@@ -36,34 +35,66 @@ const yasuo = new Yasuo({
 })
 void fromString
 
+// --- The result IS the entity: .error + .http live on it ---------------------
+
+async function resultShape(): Promise<void> {
+  const summoner = await yasuo.lol.summoner.byPuuid('puuid', Region.KR).execute()
+
+  if (summoner.error) {
+    // `error` is the original ApiError (status + body + rateLimits + response).
+    console.error(summoner.error.status, summoner.error.body)
+    return
+  }
+  // DTO fields are right on the entity; HTTP context is grouped under `.http`.
+  console.log(summoner.summonerLevel, summoner.http.status, summoner.http.rateLimits.app)
+
+  // Opt into throwing on failure:
+  const strict = await yasuo.lol.summoner.byPuuid('puuid', Region.KR).execute({ throw: true })
+  console.log(strict.summonerLevel)
+
+  // Or get exactly what Riot returned, typed `unknown`:
+  const raw = await yasuo.lol.summoner.byPuuid('puuid', Region.KR).execute({ raw: true })
+  console.log(raw)
+}
+
 // --- Account → summoner → relations (single requests) ------------------------
 
 async function walkAccount(): Promise<void> {
-  const account = await yasuo.riot.account.byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA)
-  const puuid = account.puuid
+  const account = await yasuo.riot.account
+    .byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA)
+    .execute()
+  if (account.error) {
+    return
+  }
 
-  // Awaiting the ref fetches the summoner…
-  const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR)
-  console.log(summoner.summonerLevel, summoner.meta.status, summoner.rateLimits.app)
+  // Lazy ref — no request until a terminal .execute() runs a relation.
+  const ref = account.summoner(Region.KR)
 
-  // …but a relation fetches ONLY that resource — no summoner request.
-  const ids = await account.summoner(Region.KR).matchIds({ count: 20, type: MatchType.RANKED })
-  const masteries = await account.summoner(Region.KR).topChampionMasteries(5)
-  const live = await account.summoner(Region.KR).activeGame() // CurrentGameEntity | null
-  console.log(ids.length, masteries.length, live?.gameId ?? 'not in game')
+  const matches = await ref.matches({ count: 20, type: MatchType.RANKED }).execute()
+  const masteries = await ref.topChampionMasteries(5).execute()
+  const live = await ref.activeGame().execute() // CurrentGameEntity | null
+  console.log(matches.length, masteries.length, live?.gameId ?? 'not in game')
+
+  // Scalars are boxed: read `.value`.
+  const score = await ref.masteryScore().execute()
+  console.log(score.value ?? 0)
 
   // Match → timeline (ids reused, routing derived automatically).
+  const ids = await ref.matchIds({ count: 1 }).execute()
   const first = ids[0]
   if (first) {
-    const match = await yasuo.lol.match.get(first, RegionGroup.ASIA)
-    const timeline = await match.timeline()
-    console.log(match.info.gameDuration, timeline.info.frames.length)
+    const match = await yasuo.lol.match.get(first, RegionGroup.ASIA).execute()
+    if (!match.error) {
+      const timeline = await match.timeline().execute()
+      console.log(match.info.gameDuration, timeline.info?.frames.length)
+    }
   }
 }
 
 // --- League + async-iterator pagination --------------------------------------
 
 async function streamLadder(): Promise<void> {
+  // Iterators throw on failure (idiomatic for `for await`).
   for await (const entry of yasuo.lol.league.streamEntries(
     RankedQueue.SOLO_5x5,
     Tier.DIAMOND,
@@ -83,12 +114,12 @@ async function streamLadder(): Promise<void> {
 // --- TFT ---------------------------------------------------------------------
 
 async function tft(): Promise<void> {
-  const summoner = await yasuo.tft.summoner.byPuuid('puuid', Region.KR)
-  const match = await yasuo.tft.match.get('KR_123', RegionGroup.ASIA)
-  console.log(summoner.puuid, match.metadata.match_id)
+  const summoner = await yasuo.tft.summoner.byPuuid('puuid', Region.KR).execute()
+  const match = await yasuo.tft.match.get('KR_123', RegionGroup.ASIA).execute()
+  console.log(summoner.puuid, match.metadata?.match_id)
 }
 
-// --- Data Dragon (no key, no rate limit) -------------------------------------
+// --- Data Dragon (no key, no rate limit — returns raw payloads) --------------
 
 async function staticData(): Promise<void> {
   const versions = await yasuo.dataDragon.versions()
@@ -102,20 +133,48 @@ function withRedis(redis: RedisClientLike): Yasuo {
   return new Yasuo({ key: 'RGAPI-x', cache: { store: new RedisCache(redis), ttlMs: 30_000 } })
 }
 
+// --- Custom HTTP client + stackable middleware (axios-style) ------------------
+
+function withMiddleware(): Yasuo {
+  const timing: HttpMiddleware = async (request, next, { endpointId }) => {
+    const started = Date.now()
+    const response = await next(request)
+    console.log(`${endpointId} ${response.status} in ${Date.now() - started}ms`)
+    return response
+  }
+  const client = new Yasuo({ key: 'RGAPI-x', middleware: [timing] })
+  // Global middleware wraps per-service middleware, and both stack in order.
+  client.use((request, next) =>
+    next({ ...request, headers: { ...request.headers, 'x-app': 'bot' } }),
+  )
+  client.lol.match.use((request, next) => {
+    console.debug('match request', request.url)
+    return next(request)
+  })
+  return client
+}
+
 // --- Typed error handling ----------------------------------------------------
 
 async function safeLookup(): Promise<void> {
-  try {
-    await yasuo.lol.summoner.byPuuid('puuid', Region.KR)
-  } catch (err) {
-    if (err instanceof NotFoundError) {
-      console.warn('no such summoner')
-    } else if (err instanceof RateLimitError) {
-      console.warn('rate limited; retry after', err.rateLimits.retryAfterSeconds)
-    } else if (err instanceof ApiError) {
-      console.error('riot error', err.status, err.url)
-    }
+  const summoner = await yasuo.lol.summoner.byPuuid('puuid', Region.KR).execute()
+  if (summoner.error instanceof NotFoundError) {
+    console.warn('no such summoner')
+  } else if (summoner.error instanceof ApiError) {
+    const { status, url, rateLimits } = summoner.error
+    console.error('riot error', status, url, rateLimits.retryAfterSeconds)
+  } else {
+    console.log(summoner.summonerLevel)
   }
 }
 
-export { walkAccount, streamLadder, tft, staticData, withRedis, safeLookup }
+export {
+  resultShape,
+  walkAccount,
+  streamLadder,
+  tft,
+  staticData,
+  withRedis,
+  withMiddleware,
+  safeLookup,
+}

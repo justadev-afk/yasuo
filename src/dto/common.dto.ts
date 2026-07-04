@@ -45,11 +45,8 @@ export interface RateLimits {
 }
 
 /**
- * Metadata attached to every value returned by a Riot-backed method.
- *
- * Entities expose it as `.meta`; collections expose it as `.meta` too. It is
- * the modern equivalent of Twisted's `{ rateLimits }` envelope, but travels
- * *with* the data instead of wrapping it.
+ * Metadata parsed from the response that produced a value. Used internally to
+ * build the public {@link ResponseInfo}.
  */
 export interface ResponseMeta {
   /** HTTP status code of the response that produced the value. */
@@ -60,4 +57,15 @@ export interface ResponseMeta {
   readonly url: string
   /** Raw response headers, lower-cased. */
   readonly headers: Readonly<Record<string, string>>
+}
+
+/**
+ * The HTTP context attached to every value returned by a Riot-backed method,
+ * reachable as `result.http`. It travels *with* the entity/collection/value
+ * instead of wrapping it, so `summoner.summonerLevel` and `summoner.http.status`
+ * live side by side.
+ */
+export interface ResponseInfo extends ResponseMeta {
+  /** Whether the request succeeded (a 2xx with no transport error). */
+  readonly ok: boolean
 }

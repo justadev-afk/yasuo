@@ -7,11 +7,11 @@ Riot enforces **two** independent rate limits on every key, and both must be res
 
 Each header carries one or more `limit:intervalSeconds` windows (e.g. `100:120,20:1` — "100 per 120s **and** 20 per 1s"), and the matching `-count` headers (`x-app-rate-limit-count` / `x-method-rate-limit-count`) report how many requests you have already spent in each window. Blow through either limit and Riot answers `429 Too Many Requests` with a `retry-after` (seconds) and an `x-rate-limit-type` naming which limit you tripped.
 
-yasuo handles both limits for you, on two fronts: **proactively**, by pacing requests *underneath* the advertised limits so `429`s are avoided before they happen, and **reactively**, by honouring `retry-after` with bounded backoff when one slips through anyway.
+yasuo defends both limits on two fronts. **Reactively** — on by default — it honours `retry-after` with bounded backoff when a `429`/`503` slips through anyway. **Proactively** — opt-in — it can also pace requests *underneath* the advertised limits so `429`s are avoided before they happen; enable it with `rateLimit: true`.
 
 ## Proactive: pace under the limit
 
-The limiter keeps a **sliding window** per limit window, grouped into buckets:
+Proactive pacing is **off by default** — turn it on with `rateLimit: true` (or a `RateLimiterOptions` object). When enabled, the limiter keeps a **sliding window** per limit window, grouped into buckets:
 
 - one **application bucket** per routing host (the app scope), and
 - one **method bucket** per endpoint (`host:endpointId`).
@@ -42,10 +42,10 @@ By default the limiter reconciles its local counters with Riot's `-count` header
 
 Proactive pacing cannot cover every case — a key shared across processes, a service blip, or a `503`. So when a `429` or `503` does come back:
 
-1. The offending bucket is **penalised**: parked (`blockUntil`) until `retry-after` elapses. `x-rate-limit-type` decides which — `method` parks the method bucket, `application` the app bucket, and `service`/unknown parks **both** to be safe.
-2. If retries are enabled and the status is retryable, the request is **retried**. The wait is Riot's `retry-after` when present (capped at `maxRetryAfterSeconds`), otherwise exponential backoff: `backoffBaseMs * 2 ** (attempt - 1)`.
+1. If proactive pacing is enabled, the offending bucket is **penalised**: parked (`blockUntil`) until `retry-after` elapses. `x-rate-limit-type` decides which — `method` parks the method bucket, `application` the app bucket, and `service`/unknown parks **both** to be safe.
+2. If retries are enabled and the status is retryable, the request is **retried** — this is independent of proactive pacing and on by default. The wait is Riot's `retry-after` when present (capped at `maxRetryAfterSeconds`), otherwise exponential backoff: `backoffBaseMs * 2 ** (attempt - 1)`.
 
-Retries are bounded by `maxAttempts`. Retryable statuses are `429` always, plus `502`/`503`/`504` when `retryOnServiceUnavailable` is on. Once attempts are exhausted the most specific `ApiError` is thrown (a `429` surfaces as `RateLimitError`, whose `.rateLimits.retryAfterSeconds` you can read — see [errors.md](errors.md)).
+Retries are bounded by `maxAttempts`. Retryable statuses are `429` always, plus `502`/`503`/`504` when `retryOnServiceUnavailable` is on. Once attempts are exhausted the most specific `ApiError` lands on the result's `.error` (a `429` surfaces as `RateLimitError`, whose `.rateLimits.retryAfterSeconds` you can read — see [errors.md](errors.md)). Prefer `.execute({ throw: true })` if you'd rather have that error thrown than attached.
 
 ## Configuration
 
@@ -54,8 +54,8 @@ Both fronts are configured on the `Yasuo` constructor. Each accepts a boolean sh
 ```ts
 const yasuo = new Yasuo({
   key,
-  rateLimit: true, // proactive limiter — true (default) | false | RateLimiterOptions
-  retry: true,     // reactive retries  — true (default) | false | RetryOptions
+  rateLimit: true, // proactive pacing — off by default; true | RateLimiterOptions to enable
+  retry: true,     // reactive retries — on by default; true | false | RetryOptions
 })
 ```
 
@@ -63,12 +63,12 @@ const yasuo = new Yasuo({
 
 | Option | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | `true` | Proactive throttling on/off (reactive retries are unaffected). |
+| `enabled` | `boolean` | `true` *within an options object* | Proactive throttling on/off. Omitting `rateLimit` leaves it **off**; passing an object (or `true`) turns it on. Reactive retries are unaffected. |
 | `bootstrapAppWindows` | `RateLimitWindow[]` | `20/1s` + `100/120s` | Windows an app bucket uses before real limits are learned. |
 | `syncWithHeaders` | `boolean` | `true` | Reconcile local counters with Riot's `*-count` headers. |
 | `clock` | `Clock` | system clock | Injectable time source, primarily for deterministic tests. |
 
-`rateLimit: false` is shorthand for `{ enabled: false }`; `rateLimit: true` (or omitted) is `{ enabled: true }`.
+`rateLimit: true` is shorthand for `{ enabled: true }`; `rateLimit: false` **or omitting it** is `{ enabled: false }` — proactive pacing stays off until you ask for it. Reactive retries are unaffected either way.
 
 ### `retry: RetryOptions`
 
@@ -87,11 +87,11 @@ const yasuo = new Yasuo({
 ```ts
 import { Yasuo } from 'yasuo'
 
-// 1. Defaults — proactive pacing + bounded reactive retries. Nothing to configure.
+// 1. Defaults — bounded reactive retries only; proactive pacing is off. Nothing to configure.
 const a = new Yasuo({ key })
 
-// 2. Disable proactive pacing (e.g. you pace elsewhere) but keep reactive safety.
-const b = new Yasuo({ key, rateLimit: false })
+// 2. Opt in to proactive pacing on top of the default reactive retries.
+const b = new Yasuo({ key, rateLimit: true })
 
 // 3. Custom retry policy: fewer attempts, faster backoff, ignore service errors.
 const c = new Yasuo({
@@ -104,7 +104,8 @@ const c = new Yasuo({
   },
 })
 
-// 4. Higher bootstrap ceiling for a production key, and trust only local counts.
+// 4. Enable proactive pacing (passing an object turns it on) with a higher bootstrap
+//    ceiling for a production key, and trust only local counts.
 const d = new Yasuo({
   key,
   rateLimit: {
@@ -113,8 +114,8 @@ const d = new Yasuo({
   },
 })
 
-// 5. Route through a rate-limiting proxy. The proxy owns the budget, so turn the
-//    local limiter off and let it do the pacing. `{routing}`/`{game}` are filled in.
+// 5. Route through a rate-limiting proxy. The proxy owns the budget, so leave the
+//    local limiter off (the default) and let it do the pacing. `{routing}`/`{game}` are filled in.
 const e = new Yasuo({
   key,
   baseUrl: 'https://riot-proxy.internal/{routing}/{game}',
@@ -124,33 +125,34 @@ const e = new Yasuo({
 
 ## Inspecting your budget at runtime
 
-Rate-limit info travels *with* the data — no envelope to unpack. Every entity and every collection exposes `.rateLimits` (the parsed `RateLimits` from the response that produced it):
+Rate-limit info travels *with* every result — success or failure — no envelope to unpack. Every entity, collection, and value result exposes `.http.rateLimits` (the parsed `RateLimits` from the response that produced it), alongside the rest of `.http` and `.error`:
 
 ```ts
-const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR)
+const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute()
+const { rateLimits } = summoner.http
 
-summoner.rateLimits.app     // readonly RateLimitWindow[] — app-scoped windows
-summoner.rateLimits.method  // readonly RateLimitWindow[] — method-scoped windows
+rateLimits.app     // readonly RateLimitWindow[] — app-scoped windows
+rateLimits.method  // readonly RateLimitWindow[] — method-scoped windows
 
-for (const w of summoner.rateLimits.app) {
+for (const w of rateLimits.app) {
   console.log(`${w.count ?? 0}/${w.limit} used in the last ${w.intervalSeconds}s`)
 }
 ```
 
-Each `RateLimitWindow` is `{ limit, intervalSeconds, count? }` — `count` is Riot's reported usage for that window (`undefined` before the first response). Collections carry the same field:
+Each `RateLimitWindow` is `{ limit, intervalSeconds, count? }` — `count` is Riot's reported usage for that window (`undefined` before the first response). Collections expose it the same way — the collection *is* the array, with `.http` hanging off it:
 
 ```ts
-const ids = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).matchIds({ count: 20 })
-console.log(ids.rateLimits.app)
+const ids = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).matchIds({ count: 20 }).execute()
+console.log(ids.http.rateLimits.app)
 ```
 
 After a throttled response, `retryAfterSeconds` tells you how long Riot wants you to wait:
 
 ```ts
-console.log(summoner.rateLimits.retryAfterSeconds) // number | null (null when not throttled)
+console.log(rateLimits.retryAfterSeconds) // number | null (null when not throttled)
 ```
 
-`RateLimits` also carries `type` (the `x-rate-limit-type` that caused a `429`, else `null`) and `edgeTraceId` (Riot's `x-riot-edge-trace-id`, handy for support). The full raw headers remain on `.meta.headers`.
+`RateLimits` also carries `type` (the `x-rate-limit-type` that caused a `429`, else `null`) and `edgeTraceId` (Riot's `x-riot-edge-trace-id`, handy for support). The full raw headers remain on `.http.headers`.
 
 ## Concurrency
 
@@ -160,4 +162,4 @@ Independent of the limiter, the `concurrency` option caps how many requests may 
 const yasuo = new Yasuo({ key, concurrency: 10 }) // at most 10 requests on the wire at a time
 ```
 
-It defaults to unbounded (`Infinity`). The two controls compose: the rate limiter decides *when* a request may leave (pacing under Riot's limits), and the semaphore caps *how many* are outstanding at once. Even with concurrency unbounded, the limiter still paces every request — `concurrency` is about connection pressure and memory, not about staying under Riot's limits.
+It defaults to unbounded (`Infinity`). The two controls compose: when proactive pacing is enabled the rate limiter decides *when* a request may leave (pacing under Riot's limits), and the semaphore caps *how many* are outstanding at once. `concurrency` is about connection pressure and memory, not about staying under Riot's limits — for that you either lean on the reactive retries (the default) or opt in to proactive pacing.

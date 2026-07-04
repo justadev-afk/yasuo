@@ -1,7 +1,7 @@
-import type { PlatformDataDTO } from '../../dto/lol/status.dto'
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { PlatformStatusEntity } from '../../entities/lol/platform-status.entity'
 import type { Region } from '../../enums/region'
+import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
 
 /**
@@ -9,12 +9,16 @@ import { BaseNamespace } from '../base-namespace'
  */
 export class LolStatusNamespace extends BaseNamespace {
   /**
-   * Get the platform status for a region (maintenances and incidents).
+   * The platform status for a region (maintenances and incidents).
    *
    * @param region - The platform region.
    */
-  async get(region: Region): Promise<PlatformStatusEntity> {
-    const fetched = await this.executor.request<PlatformDataDTO>(region, LOL_ENDPOINTS.status)
-    return this.toEntity(PlatformStatusEntity, fetched, this.regionContext(region))
+  get(region: Region): SingleQuery<PlatformStatusEntity> {
+    return this.single(
+      PlatformStatusEntity,
+      region,
+      LOL_ENDPOINTS.status,
+      this.regionContext(region),
+    )
   }
 }

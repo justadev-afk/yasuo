@@ -1,11 +1,12 @@
 import { type Page, Paginator } from '../../core/pagination/paginator'
-import type { TftMatchDTO } from '../../dto/tft/match.dto'
 import type { TftMatchIdsQuery, TftMatchStreamOptions } from '../../dto/tft/query.dto'
 import type { QueryParams } from '../../endpoints/endpoint'
 import { TFT_ENDPOINTS } from '../../endpoints/tft'
-import type { Collection } from '../../entities/collection'
+import { Collection } from '../../entities/collection'
 import { TftMatchEntity } from '../../entities/tft/tft-match.entity'
 import type { RegionGroup } from '../../enums/region'
+import { CollectionQuery } from '../../query/collection-query'
+import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
 
 const DEFAULT_PAGE_SIZE = 100
@@ -15,52 +16,74 @@ const DEFAULT_PAGE_SIZE = 100
  */
 export class TftMatchNamespace extends BaseNamespace {
   /**
-   * Get a page of TFT match ids for a player.
+   * A page of TFT match ids for a player.
    *
    * @param puuid - The player's PUUID.
    * @param regionGroup - The regional routing value.
    * @param query - Optional filters (count, time range…).
    */
-  async idsByPuuid(
+  idsByPuuid(
     puuid: string,
     regionGroup: RegionGroup,
     query?: TftMatchIdsQuery,
-  ): Promise<Collection<string>> {
-    const fetched = await this.executor.request<string[]>(
-      regionGroup,
-      TFT_ENDPOINTS.matchIdsByPuuid,
-      { pathParams: { puuid }, query: query as QueryParams | undefined },
-    )
-    return this.toScalarCollection(fetched)
+  ): CollectionQuery<string> {
+    return this.scalarMany<string>(regionGroup, TFT_ENDPOINTS.matchIdsByPuuid, {
+      pathParams: { puuid },
+      query: query as QueryParams | undefined,
+    })
   }
 
   /**
-   * Get a full TFT match by id.
+   * A full TFT match by id.
    *
    * @param matchId - The match id.
    * @param regionGroup - The regional routing value.
    */
-  async get(matchId: string, regionGroup: RegionGroup): Promise<TftMatchEntity> {
-    const fetched = await this.executor.request<TftMatchDTO>(regionGroup, TFT_ENDPOINTS.matchById, {
-      pathParams: { matchId },
-    })
-    return this.toEntity(TftMatchEntity, fetched, this.groupContext(regionGroup))
+  get(matchId: string, regionGroup: RegionGroup): SingleQuery<TftMatchEntity> {
+    return this.single(
+      TftMatchEntity,
+      regionGroup,
+      TFT_ENDPOINTS.matchById,
+      this.groupContext(regionGroup),
+      { pathParams: { matchId } },
+    )
   }
 
   /**
-   * Get a player's recent TFT matches, fetched in full.
+   * A player's recent TFT matches, fetched in full (one request per match).
    *
    * @param puuid - The player's PUUID.
    * @param regionGroup - The regional routing value.
    * @param query - Optional filters (count, time range…).
    */
-  async byPuuid(
+  byPuuid(
     puuid: string,
     regionGroup: RegionGroup,
     query?: TftMatchIdsQuery,
-  ): Promise<TftMatchEntity[]> {
-    const ids = await this.idsByPuuid(puuid, regionGroup, query)
-    return Promise.all(ids.map((id) => this.get(id, regionGroup)))
+  ): CollectionQuery<TftMatchEntity> {
+    return new CollectionQuery<TftMatchEntity>(async (exec) => {
+      const ids = await this.idsByPuuid(puuid, regionGroup, query).execute()
+      if (exec.raw) {
+        if (ids.error) {
+          return ids.error.body
+        }
+        return Promise.all([...ids].map((id) => this.get(id, regionGroup).execute({ raw: true })))
+      }
+      if (ids.error) {
+        if (exec.throw) {
+          throw ids.error
+        }
+        return Collection.create<TftMatchEntity>([], ids.http, ids.error)
+      }
+      const matches = await Promise.all(
+        [...ids].map((id) => this.get(id, regionGroup).execute(exec.throw ? { throw: true } : {})),
+      )
+      const failed = matches.find((match) => match.error)
+      if (failed?.error) {
+        return Collection.create<TftMatchEntity>([], failed.http, failed.error)
+      }
+      return Collection.create(matches, matches.at(-1)?.http ?? ids.http)
+    })
   }
 
   /**
@@ -80,20 +103,18 @@ export class TftMatchNamespace extends BaseNamespace {
       startCursor: options.start ?? 0,
       maxItems: options.maxItems,
       fetchPage: async (cursor): Promise<Page<TftMatchEntity>> => {
-        const fetched = await this.executor.request<string[]>(
-          regionGroup,
-          TFT_ENDPOINTS.matchIdsByPuuid,
-          {
-            pathParams: { puuid },
-            query: {
-              start: cursor,
-              count: pageSize,
-              startTime: options.startTime,
-              endTime: options.endTime,
-            },
+        const fetched = await this.request<string[]>(regionGroup, TFT_ENDPOINTS.matchIdsByPuuid, {
+          pathParams: { puuid },
+          query: {
+            start: cursor,
+            count: pageSize,
+            startTime: options.startTime,
+            endTime: options.endTime,
           },
+        })
+        const items = await Promise.all(
+          fetched.data.map((id) => this.get(id, regionGroup).execute({ throw: true })),
         )
-        const items = await Promise.all(fetched.data.map((id) => this.get(id, regionGroup)))
         return { items, meta: fetched.meta, cursor }
       },
       nextCursor: (cursor, page) => (page.items.length < pageSize ? null : cursor + pageSize),

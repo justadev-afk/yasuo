@@ -27,11 +27,13 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "test": "bun test test/unit",
-    "test:unit": "bun test test/unit",
+    "test": "bun test test/unit --coverage",
+    "test:unit": "bun test test/unit --coverage",
     "test:integration": "bun test test/integration",
     "test:all": "bun test",
     "check": "bun run typecheck && bun run lint && bun run test:unit",
+    "docs:serve": "mkdocs serve",
+    "docs:build": "mkdocs build --strict",
     "prepublishOnly": "bun run build"
   },
   "keywords": [
@@ -54,7 +56,7 @@
     "type": "git",
     "url": "git+https://github.com/justadev-afk/yasuo.git"
   },
-  "homepage": "https://github.com/justadev-afk/yasuo#readme",
+  "homepage": "https://justadev-afk.github.io/yasuo/",
   "bugs": {
     "url": "https://github.com/justadev-afk/yasuo/issues"
   },

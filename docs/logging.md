@@ -74,7 +74,7 @@ Every network call flows through the request pipeline, which logs at these level
 | `debug` | `cache hit <url>` | a fresh cache entry is served (no network) |
 | `debug` | `GET <url>` | each outgoing request, just before it is sent |
 | `warn` | `retry <n>/<max> after <ms>ms (status <code>) <url>` | a `429`/`5xx` triggers a reactive retry |
-| `error` | `request failed (<status>) <url>` | retries are exhausted and an `ApiError` is thrown |
+| `error` | `request failed (<status>) <url>` | retries are exhausted and the request finally fails — the `ApiError` surfaces as the result's `.error` (or is thrown when you call `.execute({ throw: true })`) |
 
 `info` is **not** used by the client itself — it exists so a custom `Logger` you share across your app still receives a complete four-level surface.
 

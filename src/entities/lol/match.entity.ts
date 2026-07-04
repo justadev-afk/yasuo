@@ -1,8 +1,9 @@
 import type { MatchDTO, MatchParticipantDTO, MatchTeamDTO } from '../../dto/lol/match.dto'
 import { type Region, type RegionGroup, regionFromPlatformId } from '../../enums/region'
+import type { SingleQuery } from '../../query/single-query'
 import { Entity } from '../entity'
 import type { MatchTimelineEntity } from './match-timeline.entity'
-import type { SummonerEntity } from './summoner.entity'
+import type { SummonerRef } from './summoner-ref'
 
 export interface MatchEntity extends MatchDTO {}
 
@@ -11,9 +12,9 @@ export interface MatchEntity extends MatchDTO {}
  *
  * @example
  * ```ts
- * const match     = await yasuo.lol.match.get('KR_1234', RegionGroup.ASIA)
- * const timeline  = await match.timeline()          // no ids re-passed
- * const summoners = await match.summoners()          // region derived from platformId
+ * const { data: match } = await yasuo.lol.match.get('KR_1234', RegionGroup.ASIA).execute()
+ * const { data: timeline } = await match.timeline().execute()  // no ids re-passed
+ * const summoners = match.summoners()                      // SummonerRef[], region derived
  * ```
  */
 export class MatchEntity extends Entity<MatchDTO> {
@@ -26,8 +27,8 @@ export class MatchEntity extends Entity<MatchDTO> {
     return this.metadata.matchId
   }
 
-  /** Fetch the timeline for this match. */
-  timeline(): Promise<MatchTimelineEntity> {
+  /** The timeline for this match (call `.execute()` to fetch). */
+  timeline(): SingleQuery<MatchTimelineEntity> {
     return this.context.client.lol.match.timeline(this.id, this.regionGroup)
   }
 
@@ -46,22 +47,20 @@ export class MatchEntity extends Entity<MatchDTO> {
   }
 
   /**
-   * Resolve summoner entities for all participants, deriving the platform
-   * region from `info.platformId`.
+   * Lazy {@link SummonerRef}s for every participant, deriving the platform region
+   * from `info.platformId`. Call `.execute()` on the ones you need.
    *
    * @throws {Error} If `info.platformId` is not a recognised region.
    */
-  summoners(): Promise<SummonerEntity[]> {
+  summoners(): SummonerRef[] {
     const region = this.platformRegion()
     if (region === null) {
       throw new Error(
         `Unrecognised platformId "${this.info.platformId}" — cannot resolve summoners`,
       )
     }
-    return Promise.all(
-      this.info.participants.map((participant) =>
-        this.context.client.lol.summoner.byPuuid(participant.puuid, region),
-      ),
+    return this.info.participants.map((participant) =>
+      this.context.client.lol.summoner.byPuuid(participant.puuid, region),
     )
   }
 

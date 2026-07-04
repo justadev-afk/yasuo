@@ -1,10 +1,10 @@
-import type { AccountDTO, AccountRegionDTO, ActiveShardDTO } from '../../dto/riot/account.dto'
 import { RIOT_ENDPOINTS } from '../../endpoints/riot'
 import { AccountRegionEntity } from '../../entities/riot/account-region.entity'
 import { AccountEntity } from '../../entities/riot/account.entity'
 import { ActiveShardEntity } from '../../entities/riot/active-shard.entity'
 import type { Game } from '../../enums/game'
 import type { AccountRegionGroup } from '../../enums/region'
+import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
 
 /**
@@ -12,77 +12,81 @@ import { BaseNamespace } from '../base-namespace'
  */
 export class RiotAccountNamespace extends BaseNamespace {
   /**
-   * Get an account by PUUID.
+   * An account by PUUID.
    *
    * @param puuid - The player's PUUID.
    * @param regionGroup - Account routing value (`AMERICAS`, `ASIA` or `EUROPE`).
    */
-  async byPuuid(puuid: string, regionGroup: AccountRegionGroup): Promise<AccountEntity> {
-    const fetched = await this.executor.request<AccountDTO>(
+  byPuuid(puuid: string, regionGroup: AccountRegionGroup): SingleQuery<AccountEntity> {
+    return this.single(
+      AccountEntity,
       regionGroup,
       RIOT_ENDPOINTS.accountByPuuid,
+      this.groupContext(regionGroup),
       { pathParams: { puuid } },
     )
-    return this.toEntity(AccountEntity, fetched, this.groupContext(regionGroup))
   }
 
   /**
-   * Get an account by Riot ID.
+   * An account by Riot ID.
    *
    * @param gameName - The in-game name (before the `#`).
    * @param tagLine - The tag line (after the `#`).
    * @param regionGroup - Account routing value (`AMERICAS`, `ASIA` or `EUROPE`).
    */
-  async byRiotId(
+  byRiotId(
     gameName: string,
     tagLine: string,
     regionGroup: AccountRegionGroup,
-  ): Promise<AccountEntity> {
-    const fetched = await this.executor.request<AccountDTO>(
+  ): SingleQuery<AccountEntity> {
+    return this.single(
+      AccountEntity,
       regionGroup,
       RIOT_ENDPOINTS.accountByRiotId,
+      this.groupContext(regionGroup),
       { pathParams: { gameName, tagLine } },
     )
-    return this.toEntity(AccountEntity, fetched, this.groupContext(regionGroup))
   }
 
   /**
-   * Get a player's active shard for a game.
+   * A player's active shard for a game.
    *
    * @param game - The game (`lol`, `tft`, …).
    * @param puuid - The player's PUUID.
    * @param regionGroup - Account routing value.
    */
-  async activeShard(
+  activeShard(
     game: Game,
     puuid: string,
     regionGroup: AccountRegionGroup,
-  ): Promise<ActiveShardEntity> {
-    const fetched = await this.executor.request<ActiveShardDTO>(
+  ): SingleQuery<ActiveShardEntity> {
+    return this.single(
+      ActiveShardEntity,
       regionGroup,
       RIOT_ENDPOINTS.accountActiveShard,
+      this.groupContext(regionGroup),
       { pathParams: { game, puuid } },
     )
-    return this.toEntity(ActiveShardEntity, fetched, this.groupContext(regionGroup))
   }
 
   /**
-   * Get a player's active region for a game.
+   * A player's active region for a game.
    *
    * @param game - The game (`lol` or `tft`).
    * @param puuid - The player's PUUID.
    * @param regionGroup - Account routing value.
    */
-  async activeRegion(
+  activeRegion(
     game: Game,
     puuid: string,
     regionGroup: AccountRegionGroup,
-  ): Promise<AccountRegionEntity> {
-    const fetched = await this.executor.request<AccountRegionDTO>(
+  ): SingleQuery<AccountRegionEntity> {
+    return this.single(
+      AccountRegionEntity,
       regionGroup,
       RIOT_ENDPOINTS.accountActiveRegion,
+      this.groupContext(regionGroup),
       { pathParams: { game, puuid } },
     )
-    return this.toEntity(AccountRegionEntity, fetched, this.groupContext(regionGroup))
   }
 }

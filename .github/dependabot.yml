@@ -1,0 +1,34 @@
+version: 2
+updates:
+  # Dev dependencies (Biome, tsup, TypeScript, @types).
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      dev-dependencies:
+        dependency-type: development
+
+  # GitHub Actions used by the CI and docs workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"
+
+  # The pinned MkDocs toolchain for the docs site.
+  - package-ecosystem: pip
+    directory: "/docs"
+    schedule:
+      interval: monthly
+    labels: ["dependencies", "docs"]
+    commit-message:
+      prefix: "chore(docs)"

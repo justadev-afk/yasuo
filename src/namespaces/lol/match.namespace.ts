@@ -1,13 +1,13 @@
 import { type Page, Paginator } from '../../core/pagination/paginator'
-import type { MatchDTO } from '../../dto/lol/match.dto'
 import type { MatchIdsQuery, MatchStreamOptions } from '../../dto/lol/query.dto'
-import type { MatchTimelineDTO } from '../../dto/lol/timeline.dto'
 import type { QueryParams } from '../../endpoints/endpoint'
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
-import type { Collection } from '../../entities/collection'
+import { Collection } from '../../entities/collection'
 import { MatchTimelineEntity } from '../../entities/lol/match-timeline.entity'
 import { MatchEntity } from '../../entities/lol/match.entity'
 import type { RegionGroup } from '../../enums/region'
+import { CollectionQuery } from '../../query/collection-query'
+import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
 
 const DEFAULT_PAGE_SIZE = 100
@@ -17,67 +17,92 @@ const DEFAULT_PAGE_SIZE = 100
  */
 export class LolMatchNamespace extends BaseNamespace {
   /**
-   * Get a full match by id.
+   * A full match by id.
    *
    * @param matchId - The match id, e.g. `KR_1234567890`.
    * @param regionGroup - The regional routing value.
    */
-  async get(matchId: string, regionGroup: RegionGroup): Promise<MatchEntity> {
-    const fetched = await this.executor.request<MatchDTO>(regionGroup, LOL_ENDPOINTS.matchById, {
-      pathParams: { matchId },
-    })
-    return this.toEntity(MatchEntity, fetched, this.groupContext(regionGroup))
+  get(matchId: string, regionGroup: RegionGroup): SingleQuery<MatchEntity> {
+    return this.single(
+      MatchEntity,
+      regionGroup,
+      LOL_ENDPOINTS.matchById,
+      this.groupContext(regionGroup),
+      {
+        pathParams: { matchId },
+      },
+    )
   }
 
   /**
-   * Get a match timeline by id.
+   * A match timeline by id.
    *
    * @param matchId - The match id.
    * @param regionGroup - The regional routing value.
    */
-  async timeline(matchId: string, regionGroup: RegionGroup): Promise<MatchTimelineEntity> {
-    const fetched = await this.executor.request<MatchTimelineDTO>(
+  timeline(matchId: string, regionGroup: RegionGroup): SingleQuery<MatchTimelineEntity> {
+    return this.single(
+      MatchTimelineEntity,
       regionGroup,
       LOL_ENDPOINTS.matchTimeline,
+      this.groupContext(regionGroup),
       { pathParams: { matchId } },
     )
-    return this.toEntity(MatchTimelineEntity, fetched, this.groupContext(regionGroup))
   }
 
   /**
-   * Get a page of match ids for a player.
+   * A page of match ids for a player.
    *
    * @param puuid - The player's PUUID.
    * @param regionGroup - The regional routing value.
    * @param query - Optional filters (count, queue, type, time range…).
    */
-  async idsByPuuid(
+  idsByPuuid(
     puuid: string,
     regionGroup: RegionGroup,
     query?: MatchIdsQuery,
-  ): Promise<Collection<string>> {
-    const fetched = await this.executor.request<string[]>(
-      regionGroup,
-      LOL_ENDPOINTS.matchIdsByPuuid,
-      { pathParams: { puuid }, query: query as QueryParams | undefined },
-    )
-    return this.toScalarCollection(fetched)
+  ): CollectionQuery<string> {
+    return this.scalarMany<string>(regionGroup, LOL_ENDPOINTS.matchIdsByPuuid, {
+      pathParams: { puuid },
+      query: query as QueryParams | undefined,
+    })
   }
 
   /**
-   * Get a player's recent matches, fetched in full (one request per match).
+   * A player's recent matches, fetched in full (one request per match).
    *
    * @param puuid - The player's PUUID.
    * @param regionGroup - The regional routing value.
    * @param query - Optional filters (count, queue, type, time range…).
    */
-  async byPuuid(
+  byPuuid(
     puuid: string,
     regionGroup: RegionGroup,
     query?: MatchIdsQuery,
-  ): Promise<MatchEntity[]> {
-    const ids = await this.idsByPuuid(puuid, regionGroup, query)
-    return Promise.all(ids.map((id) => this.get(id, regionGroup)))
+  ): CollectionQuery<MatchEntity> {
+    return new CollectionQuery<MatchEntity>(async (exec) => {
+      const ids = await this.idsByPuuid(puuid, regionGroup, query).execute()
+      if (exec.raw) {
+        if (ids.error) {
+          return ids.error.body
+        }
+        return Promise.all([...ids].map((id) => this.get(id, regionGroup).execute({ raw: true })))
+      }
+      if (ids.error) {
+        if (exec.throw) {
+          throw ids.error
+        }
+        return Collection.create<MatchEntity>([], ids.http, ids.error)
+      }
+      const matches = await Promise.all(
+        [...ids].map((id) => this.get(id, regionGroup).execute(exec.throw ? { throw: true } : {})),
+      )
+      const failed = matches.find((match) => match.error)
+      if (failed?.error) {
+        return Collection.create<MatchEntity>([], failed.http, failed.error)
+      }
+      return Collection.create(matches, matches.at(-1)?.http ?? ids.http)
+    })
   }
 
   /**
@@ -97,11 +122,10 @@ export class LolMatchNamespace extends BaseNamespace {
       startCursor: options.start ?? 0,
       maxItems: options.maxItems,
       fetchPage: async (cursor): Promise<Page<string>> => {
-        const fetched = await this.executor.request<string[]>(
-          regionGroup,
-          LOL_ENDPOINTS.matchIdsByPuuid,
-          { pathParams: { puuid }, query: this.pageQuery(cursor, pageSize, options) },
-        )
+        const fetched = await this.request<string[]>(regionGroup, LOL_ENDPOINTS.matchIdsByPuuid, {
+          pathParams: { puuid },
+          query: this.pageQuery(cursor, pageSize, options),
+        })
         return { items: fetched.data, meta: fetched.meta, cursor }
       },
       nextCursor: (cursor, page) => (page.items.length < pageSize ? null : cursor + pageSize),
@@ -125,12 +149,13 @@ export class LolMatchNamespace extends BaseNamespace {
       startCursor: options.start ?? 0,
       maxItems: options.maxItems,
       fetchPage: async (cursor): Promise<Page<MatchEntity>> => {
-        const fetched = await this.executor.request<string[]>(
-          regionGroup,
-          LOL_ENDPOINTS.matchIdsByPuuid,
-          { pathParams: { puuid }, query: this.pageQuery(cursor, pageSize, options) },
+        const fetched = await this.request<string[]>(regionGroup, LOL_ENDPOINTS.matchIdsByPuuid, {
+          pathParams: { puuid },
+          query: this.pageQuery(cursor, pageSize, options),
+        })
+        const items = await Promise.all(
+          fetched.data.map((id) => this.get(id, regionGroup).execute({ throw: true })),
         )
-        const items = await Promise.all(fetched.data.map((id) => this.get(id, regionGroup)))
         return { items, meta: fetched.meta, cursor }
       },
       nextCursor: (cursor, page) => (page.items.length < pageSize ? null : cursor + pageSize),

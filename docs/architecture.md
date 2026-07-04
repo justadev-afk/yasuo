@@ -42,7 +42,7 @@ src/
 │   └── index.ts              Barrel.
 │
 ├── core/               Transport & infrastructure. No Riot domain knowledge here.
-│   ├── http/           HttpClient interface + FetchHttpClient.
+│   ├── http/           HttpClient interface + FetchHttpClient; HttpMiddleware + composeMiddleware.
 │   ├── rate-limit/     SlidingWindow → RateLimitBucket → RateLimiter, header parsing.
 │   ├── cache/          CacheStore interface, MemoryCache, RedisCache.
 │   ├── pagination/     Paginator (async-iterable) + Page.
@@ -55,21 +55,27 @@ src/
 │   ├── lol.ts  tft.ts  riot.ts   Const maps of endpoints per product.
 │   └── index.ts        Barrel.
 │
-├── entities/           User-facing objects. One class per file, `*.entity.ts`.
-│   ├── entity.ts       Abstract Entity<TData> — merges DTO fields + `.meta`.
-│   ├── collection.ts   Collection<T> extends Array, carries `.meta`.
+├── entities/           User-facing results. One class per file, `*.entity.ts`.
+│   ├── entity.ts       Abstract Entity<TData> — copies the DTO's fields onto the instance; adds `.error` + `.http`.
+│   ├── collection.ts   Collection<T> extends Array — what a CollectionQuery resolves to; carries `.error` + `.http`.
+│   ├── value-result.ts ValueResult<T> — boxes a scalar; read it from `.value`, same `.error`/`.http`.
 │   ├── entity-context.ts  EntityContext { client, region?, regionGroup? }.
-│   ├── lol/  riot/  tft/   Entities + the lazy `*-ref.ts` references.
+│   ├── lol/  riot/  tft/   Entities + the lazy `*-ref.ts` query builders.
 │   └── index.ts        Barrel.
 │
+├── query/              Deferred request builders (Supabase-style).
+│   ├── single-query.ts     SingleQuery<E> — `.execute()` resolves the entity/`ValueResult` directly.
+│   ├── collection-query.ts CollectionQuery<T> — `.execute()` resolves a `Collection<T>` directly.
+│   └── execute-options.ts  ExecuteOptions `{ throw?, raw?, signal? }` + the QueryRunner type.
+│
 ├── namespaces/         The methods users call. One namespace class per file.
-│   ├── base-namespace.ts   Shared helpers (toEntity/toCollection, contexts).
+│   ├── base-namespace.ts   single()/many()/scalar()/scalarMany() query factories + the shared runResult() runner, use()/service middleware, contexts.
 │   ├── lol/  riot/  tft/  data-dragon/   One file per Riot service + an aggregator.
 │   └── …
 │
 └── client/
-    ├── config.ts       YasuoConfig + resolvers (retry, rate limit, cache, logger, base URL).
-    └── yasuo.ts        The Yasuo class — wires executor + namespaces together.
+    ├── config.ts       YasuoConfig + resolvers (retry, rate limit, cache, logger, base URL, httpClient, middleware).
+    └── yasuo.ts        The Yasuo class — wires executor + namespaces together; `use()` registers global middleware.
 ```
 
 ## Where does new code go?
@@ -80,7 +86,7 @@ src/
 | A new response shape | `src/dto/<product>/<resource>.dto.ts` | `interface XxxDTO`, `readonly` fields |
 | A new endpoint | `src/endpoints/<product>.ts` | key = camelCase id; `path` uses `:param` placeholders |
 | A new user-facing object | `src/entities/<product>/<name>.entity.ts` | `class XxxEntity extends Entity<XxxDTO>` |
-| A lazy, chainable reference | `src/entities/<product>/<name>-ref.ts` | `class XxxRef implements PromiseLike<XxxEntity>` |
+| A lazy, chainable reference | `src/entities/<product>/<name>-ref.ts` | `class XxxRef extends SingleQuery<XxxEntity>` |
 | A new method group | `src/namespaces/<product>/<service>.namespace.ts` | `class XxxNamespace extends BaseNamespace` |
 | A transport/infra concern | `src/core/<area>/…` | no Riot domain types |
 | A new error case | `src/errors/<name>-error.ts` + wire into `api-error-factory.ts` | `class XxxError extends ApiError` |
@@ -98,25 +104,33 @@ import { Entity } from '../entity'
 // 1. Interface merges the DTO's fields onto the entity type.
 export interface SummonerEntity extends SummonerDTO {}
 
-// 2. Class adds relations + metadata. Fields come from the merged interface.
+// 2. Class adds lazy-relation methods that return query builders.
+//    DTO fields come from the merged interface; the base Entity adds `.error` and
+//    `.http` (status, headers, rateLimits, ok, url) directly on the instance.
 export class SummonerEntity extends Entity<SummonerDTO> {
-  matches(query?: MatchIdsQuery) { /* … lazy relation … */ }
+  matches(query?: MatchIdsQuery): CollectionQuery<MatchEntity> { /* … lazy relation … */ }
 }
 ```
 
 This is why `biome.json` disables `noUnsafeDeclarationMerging` and `noEmptyInterface` — the pattern is deliberate and load-bearing, not an accident.
 
-## The lazy-reference pattern (thenable)
+## The lazy-reference pattern (query builders)
 
-A `*Ref` is a `PromiseLike` that holds an identifier (e.g. a PUUID) and a fetcher. `await`ing it runs the fetcher; calling a relation runs **only** the related request. This is what makes `summoner.byPuuid(...).matchIds()` a single call. `then()` on these classes is intentional, so it carries a `biome-ignore lint/suspicious/noThenProperty` comment.
+A `*Ref` **extends `SingleQuery`** (`class SummonerRef extends SingleQuery<SummonerEntity>`): it holds an identifier (e.g. a PUUID) plus the entity's own runner, so calling `.execute()` fetches that entity. Its relation methods each return their **own** `SingleQuery` / `CollectionQuery`, so `summoner.byPuuid(...).matchIds().execute()` runs a single request — the summoner itself is never fetched. These classes are **no longer thenable**: the old `then()` / `implements PromiseLike` is gone (`await ref` no longer works — use `await ref.execute()`), so there is no `biome-ignore lint/suspicious/noThenProperty` to carry any more.
 
 ## The request pipeline
 
-Every network call — no exceptions — flows through `RequestExecutor.request()`:
+Every network call — no exceptions — flows through `RequestExecutor.request()`, which resolves to the parsed payload + `ResponseMeta` or **throws** the typed `ApiError`:
 
-> key check → resolve URL → cache lookup → rate-limiter `acquire` → `Semaphore` (concurrency cap) → send → parse rate-limit headers → feed limiter → cache store on 2xx → on 429/503 penalise + retry → else throw the typed `ApiError`.
+> key check → resolve URL → cache lookup → rate-limiter `acquire` → `Semaphore` (concurrency cap) → send through the composed middleware chain to the `HttpClient` → parse rate-limit headers → feed limiter → cache store on 2xx → on 429/503 penalise + retry → else throw the typed `ApiError`.
 
-Namespaces never call `fetch` directly; they call `this.executor.request(...)`. (The one exception is `DataDragonNamespace`, which hits a keyless, un-rate-limited CDN and uses its own tiny fetch wrapper.)
+Namespaces never call `fetch` directly, and never call `request()` eagerly. A namespace method describes the request and hands it to one of the `BaseNamespace` factories — `single()`, `many()`, `scalar()` or `scalarMany()` — which wrap the deferred call in a lazy `SingleQuery` / `CollectionQuery`. Nothing hits the network until the caller invokes `.execute()`.
+
+When it does, the shared `BaseNamespace.runResult()` awaits `request()` inside a `try/catch`. `request()` **still throws internally**; `runResult` is what makes the public API non-throwing. On success it maps the payload + `ResponseMeta` into the entity / `Collection` / `ValueResult` (each copies the metadata onto its own `.http` and sets `.error` to `null`); on a caught `ApiError` it builds the same shape via the factory's `onFailure` callback — DTO fields absent, `.error` set, `http.ok` `false`. Two execute-time options short-circuit this: `{ raw: true }` returns the untouched Riot payload (or, on failure, the error body) typed `unknown`, and `{ throw: true }` rethrows the `ApiError` instead of attaching it. Anything that is **not** an `ApiError` — e.g. `ApiKeyMissingError`, which extends `YasuoError` directly and signals programmer misuse — is **rethrown** unconditionally. That is why misuse still throws while genuine API failures surface on the result's `.error`. All response metadata (`status`, `rateLimits`, `headers`, `url`, `ok`) now travels **with** the entity on its `.http`, not in a separate wrapper.
+
+The transport is **pluggable**. `request()` sends through an injected `HttpClient` (`config.httpClient`, defaulting to `FetchHttpClient`) — any object with a single `send(request)` method qualifies, which is how unit tests swap in a mock and avoid the network. Wrapped around that transport is an axios-style **middleware** chain (`HttpMiddleware = (request, next, context) => Promise<response>`): **global** middleware, registered via `yasuo.use(...)` or `config.middleware`, wraps **per-service** middleware, registered via `yasuo.lol.summoner.use(...)`. On every attempt `RequestExecutor` folds the two lists into one handler around the transport with `composeMiddleware` (global outermost), so a middleware can log, mutate headers, short-circuit, or run its own retry.
+
+(The one exception to the whole pipeline is `DataDragonNamespace`, which hits a keyless, un-rate-limited CDN and uses its own tiny fetch wrapper — it returns raw promises of DTOs, not query builders.)
 
 ## Enum conventions
 
@@ -131,7 +145,16 @@ Namespaces never call `fetch` directly; they call `this.executor.request(...)`. 
 - **Lint & format:** Biome (`bun run lint`, `bun run format`). Config in `biome.json`.
 - **Types:** `tsc --noEmit` in strict mode (`bun run typecheck`). Must stay green.
 - **Build:** tsup → a single ESM + CJS file with `.d.ts` (`bun run build`). `splitting: false` guarantees one file each.
-- **Tests:** `bun test`. Unit tests under `test/unit` (no network, deterministic); live tests under `test/integration` (skipped without `RIOT_API_KEY`).
+- **Tests:** `bun test`. Unit tests under `test/unit` (no network, deterministic — inject a mock `HttpClient`); live tests under `test/integration` (skipped without `RIOT_API_KEY`).
+- **Coverage gate:** the `test`/`test:unit` scripts run with `--coverage`, and `bunfig.toml` fails the run below **95% line/statement coverage** (currently ~97.5%). New logic ships with a unit test.
+
+## Keeping the docs alive
+
+The docs are part of the public API, not an afterthought. **Whenever the public API changes — a method, a signature, a return type, the response shape, config options — the docs under `docs/` and the runnable examples in `examples/basic-usage.ts` MUST be updated in the same change.** A PR that ships an API change with stale docs is incomplete.
+
+- Every code block in `docs/` must compile against the current API: query builder + terminal `.execute()` resolving the entity/`Collection`/`ValueResult` **directly** (read `.error`/`.http`, and `.value` for scalars), the `{ throw: true }`/`{ raw: true }` opt-ins — no `YasuoResponse`, no `.unwrap()`, no thenable `await ref`.
+- `examples/basic-usage.ts` is the executable smoke-test for the docs — keep it in lock-step with the prose.
+- The docs are published with **MkDocs Material** to GitHub Pages at **<https://justadev-afk.github.io/yasuo/>**, which is the **canonical reference**. Keep internal cross-links as bare relative `.md` links (e.g. `[errors](errors.md)`) so MkDocs resolves them.
 
 ## Definition of done for a change
 
@@ -140,3 +163,4 @@ Namespaces never call `fetch` directly; they call `this.executor.request(...)`. 
 3. `bun test test/unit` — green; new logic has a unit test.
 4. New public surface has JSDoc and is exported from `src/index.ts`.
 5. If it touches the wire shape, verify against a live response before trusting the docs.
+6. If it changes the public API, `docs/` and `examples/basic-usage.ts` are updated in the same change (see **Keeping the docs alive**).

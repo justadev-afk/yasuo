@@ -1,3 +1,4 @@
+import type { HttpMiddleware } from '../core/http/middleware'
 import { RequestExecutor } from '../core/request/request-executor'
 import { DataDragonNamespace } from '../namespaces/data-dragon/data-dragon.namespace'
 import { LolNamespace } from '../namespaces/lol/lol.namespace'
@@ -37,16 +38,36 @@ export class Yasuo {
   /** Data Dragon static data (no API key or rate limits). */
   readonly dataDragon: DataDragonNamespace
 
+  private readonly executor: RequestExecutor
+
   /**
    * @param config - Client configuration, or a bare API key string. When
    * omitted, the key is read from the `RIOT_API_KEY` environment variable.
    */
   constructor(config: YasuoConfig | string = {}) {
     const resolved: YasuoConfig = typeof config === 'string' ? { key: config } : config
-    const executor = new RequestExecutor(resolved)
-    this.lol = new LolNamespace(executor, this)
-    this.tft = new TftNamespace(executor, this)
-    this.riot = new RiotNamespace(executor, this)
+    this.executor = new RequestExecutor(resolved)
+    this.lol = new LolNamespace(this.executor, this)
+    this.tft = new TftNamespace(this.executor, this)
+    this.riot = new RiotNamespace(this.executor, this)
     this.dataDragon = new DataDragonNamespace()
+  }
+
+  /**
+   * Register a **global** request {@link HttpMiddleware}, applied to every
+   * request across all services (Data Dragon excepted). Middlewares stack:
+   * global ones wrap any service-scoped middleware added with
+   * `yasuo.lol.summoner.use(...)`. Returns `this` for chaining.
+   *
+   * @example
+   * ```ts
+   * yasuo
+   *   .use(async (request, next) => { console.time(request.url); const r = await next(request); console.timeEnd(request.url); return r })
+   *   .use((request, next) => next({ ...request, headers: { ...request.headers, 'x-app': 'my-bot' } }))
+   * ```
+   */
+  use(middleware: HttpMiddleware): this {
+    this.executor.use(middleware)
+    return this
   }
 }

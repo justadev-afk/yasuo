@@ -27,7 +27,18 @@ for await (const id of yasuo.lol.match.streamIds(puuid, RegionGroup.ASIA)) {
 
 ## The four ways to consume a Paginator
 
-Every `stream*` method returns a `Paginator<T>`. You can drain it four ways.
+Every `stream*` method returns a `Paginator<T>` **directly** — a paginator is not
+a query builder, so there is no `.execute()` to call and no single result to
+await; you iterate the paginator itself. You can drain it four ways.
+
+> **Iteration throws on failure.** Where a single/collection query's `.execute()`
+> resolves the entity/collection directly and never throws for an API error (it
+> sets `.error` instead), a `Paginator` follows async-iterator convention: every
+> page is fetched with `{ throw: true }` internally, so a failed request (`404`,
+> `429`, `5xx`, a transport error) **throws mid-iteration**. Wrap a `for await`,
+> `.toArray()`, `.first()` or `.pages()` loop in `try/catch` when you need to
+> handle those — the thrown value is the same rich [`ApiError`](errors.md) the
+> query builders attach as the result's `.error`.
 
 ### Item by item — `for await`
 

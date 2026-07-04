@@ -1,25 +1,28 @@
 # Migrating from twisted
 
-yasuo is the evolution of [twisted](https://github.com/Zzuzzu/twisted). It keeps
+yasuo is the evolution of [twisted](https://github.com/justadev-afk/twisted). It keeps
 everything that made twisted pleasant — a single client, fully typed responses,
-rate-limit info attached to every result — and rebuilds the surface around lazy,
-chainable, relation-aware **entities**, a proactive rate limiter, a pluggable
-cache, a leveled logger and async iterators, all with **zero runtime
+rate-limit info on every response — and rebuilds the surface around lazy,
+chainable, relation-aware **query builders**, an opt-in proactive rate limiter, a
+pluggable cache, a leveled logger and async iterators, all with **zero runtime
 dependencies**.
 
 > **This is a spiritual successor, not a drop-in replacement.** The method names,
 > the construction, the response shape and the routing types all changed on
-> purpose — the ergonomics are the whole point. This guide maps every twisted
-> concept to its yasuo equivalent so you can port a codebase mechanically.
+> purpose — the ergonomics are the whole point. Every namespace method now returns
+> a query builder you run with a terminal `.execute()`, which resolves the
+> **entity itself** — non-throwing, carrying its own `.error` and `.http`. This
+> guide maps every twisted concept to its yasuo equivalent so you can port a
+> codebase mechanically.
 
 ## Why the churn is worth it
 
 | | twisted | **yasuo** |
 | --- | --- | --- |
 | Runtime dependencies | a few | **zero** |
-| Rate limiting | reactive (retry on 429) | **proactive + reactive** (paces requests *under* Riot's limits, then retries) |
-| Response shape | `{ response, rateLimits }` envelope | rich **entities** with `.meta` / `.rateLimits` and **lazy relations** |
-| Chaining | manual (fetch summoner → fetch matches) | `account.summoner(r).matchIds()` — **only the final request runs** |
+| Rate limiting | reactive (retry on 429) | **reactive by default, proactive opt-in** (retries 429/503; pass `rateLimit: true` to also pace *under* Riot's limits) |
+| Response shape | `{ response, rateLimits }` envelope | query builder + `.execute()` → **the entity itself**, carrying `.error` + `.http` — **non-throwing**; opt into throwing with `.execute({ throw: true })` |
+| Chaining | manual (fetch summoner → fetch matches) | `summoner.byPuuid(...).matchIds().execute()` — **only the final request runs** |
 | Pagination | manual page loops | **async iterators** (`for await`), start from any page |
 | Caching | — | pluggable **in-memory / Redis** cache |
 | Logging | `debug: { logTime, logUrls }` | leveled logger (`debug`/`info`/`warn`/`error`), env-driven |
@@ -94,11 +97,14 @@ Common mappings:
 The underlying wire values are identical (`Region.KR === 'KR'`,
 `Region.EUW === 'EUW1'`), so nothing changes at the HTTP layer — only the names.
 
-## 3. Response shape: unwrap the envelope
+## 3. Response shape: `.execute()` and the entity itself
 
 twisted resolved every call to an `{ response, rateLimits }` envelope you had to
-destructure. In yasuo the DTO fields live **directly on the entity**, and the
-metadata travels *with* the data on `.meta` / `.rateLimits` — no unwrapping.
+destructure. In yasuo a namespace method returns a **query builder** — nothing
+hits the network until you call the terminal `.execute()`, which resolves the
+**entity itself**. There is no wrapper object: the DTO fields live directly on
+the entity, and it carries its own `.error` (`ApiError | null`) and `.http`
+(`{ status, headers, rateLimits, ok, url }`) right alongside them.
 
 ```ts
 // BEFORE — twisted
@@ -109,32 +115,53 @@ console.log(rateLimits.AppRateLimit)
 
 ```ts
 // AFTER — yasuo
-const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR)
-console.log(summoner.summonerLevel)     // DTO field, right on the entity
-console.log(summoner.rateLimits.app)    // [{ limit, intervalSeconds, count }]
-console.log(summoner.meta.status)       // 200
-console.log(summoner.meta.headers)      // raw, lower-cased response headers
+const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute()
+if (summoner.error) return                // no throw — `error` is the original ApiError
+console.log(summoner.summonerLevel)       // DTO field, right on the entity
+console.log(summoner.http.rateLimits.app) // [{ limit, intervalSeconds, count }]
+console.log(summoner.http.status)         // 200
 ```
 
-List endpoints return a `Collection` — an array-like you can `map`/`filter`/spread,
-which *also* carries `.meta` and `.rateLimits`.
+`.execute()` **never throws for an API-level failure** (404/403/429/5xx/network):
+the DTO fields are absent, `summoner.error` holds the original `ApiError` and
+`summoner.http.ok` is `false`. If you would rather throw, pass
+`.execute({ throw: true })` — it returns the entity on success or throws the
+`ApiError`:
+
+```ts
+const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute({ throw: true })
+```
+
+Need the untouched Riot payload? `.execute({ raw: true })` returns exactly what
+the API sent, typed `unknown`, bypassing entity mapping (on failure it is the
+error body Riot returned).
+
+(Misuse still throws eagerly: a missing or empty key throws `ApiKeyMissingError`,
+because that is a programmer error, not an API error.)
+
+List endpoints resolve to a `Collection` **directly** — an array you can
+`map`/`filter`/spread, carrying the same `.error`/`.http`. Scalar endpoints
+(e.g. `mastery.score`) resolve a `ValueResult` — read the value from `.value`.
 
 ## 4. Method mapping
 
+Every yasuo cell returns a query builder — append `.execute()` to run it. The
+Notes column shows what `.execute()` resolves to.
+
 | twisted | yasuo | Notes |
 | --- | --- | --- |
-| `lol.Summoner.getByPUUID(puuid, region)` | `yasuo.lol.summoner.byPuuid(puuid, region)` | returns a lazy `SummonerRef` |
+| `lol.Summoner.getByPUUID(puuid, region)` | `yasuo.lol.summoner.byPuuid(puuid, region).execute()` | lazy `SummonerRef extends SingleQuery`; → `SummonerEntity` |
 | `lol.Summoner.getByName(name, region)` | — | **removed by Riot**; see gotchas |
-| `lol.Summoner.getBySummonerId(id, region)` | `yasuo.lol.summoner.byId(id, region)` | deprecated by Riot; prefer PUUID |
-| `lol.League.byPUUID(puuid, region)` | `yasuo.lol.league.byPuuid(puuid, region)` | `Collection<LeagueEntryEntity>` |
-| `lol.League.get(summonerId, region)` | `yasuo.lol.league.bySummonerId(id, region)` | deprecated by Riot; prefer PUUID |
-| `lol.MatchV5.list(puuid, group, { count })` | `yasuo.lol.match.idsByPuuid(puuid, group, { count })` | `Collection<string>` |
-| `lol.MatchV5.get(matchId, group)` | `yasuo.lol.match.get(matchId, group)` | `MatchEntity` |
-| `lol.MatchV5.timeline(matchId, group)` | `yasuo.lol.match.timeline(matchId, group)` | or `match.timeline()` |
-| `tft.Match.get(matchId, group)` | `yasuo.tft.match.get(matchId, group)` | |
-| `riot.Account.getByRiotId(name, tag, group)` | `yasuo.riot.account.byRiotId(name, tag, group)` | `AccountEntity` |
-| `riot.Account.getByPUUID(puuid, group)` | `yasuo.riot.account.byPuuid(puuid, group)` | |
-| `riot.Account.getActiveRegion(puuid, game, group)` | `yasuo.riot.account.activeRegion(game, puuid, group)` | note the argument order |
+| `lol.Summoner.getBySummonerId(id, region)` | `yasuo.lol.summoner.byId(id, region).execute()` | deprecated by Riot; prefer PUUID |
+| `lol.League.byPUUID(puuid, region)` | `yasuo.lol.league.byPuuid(puuid, region).execute()` | → `Collection<LeagueEntryEntity>` |
+| `lol.League.get(summonerId, region)` | `yasuo.lol.league.bySummonerId(id, region).execute()` | deprecated by Riot; prefer PUUID |
+| `lol.MatchV5.list(puuid, group, { count })` | `yasuo.lol.match.idsByPuuid(puuid, group, { count }).execute()` | → `Collection<string>` |
+| `lol.MatchV5.get(matchId, group)` | `yasuo.lol.match.get(matchId, group).execute()` | → `MatchEntity` |
+| `lol.MatchV5.timeline(matchId, group)` | `yasuo.lol.match.timeline(matchId, group).execute()` | → `MatchTimelineEntity` |
+| `tft.Match.get(matchId, group)` | `yasuo.tft.match.get(matchId, group).execute()` | → `TftMatchEntity` |
+| `riot.Account.getByRiotId(name, tag, group)` | `yasuo.riot.account.byRiotId(name, tag, group).execute()` | → `AccountEntity` |
+| `riot.Account.getByPUUID(puuid, group)` | `yasuo.riot.account.byPuuid(puuid, group).execute()` | → `AccountEntity` |
+| `riot.Account.getActiveRegion(puuid, game, group)` | `yasuo.riot.account.activeRegion(game, puuid, group).execute()` | note the argument order |
 
 Notice the shift to **PUUID-first**. Riot has deprecated encrypted-summoner-id and
 account-id lookups; yasuo keeps `byId` / `bySummonerId` for legacy data but marks
@@ -144,9 +171,10 @@ them `@deprecated`, and every relation routes by PUUID.
 
 ### Lazy relations — chain in a single request
 
-`byPuuid(...)` returns a chainable, awaitable reference. Awaiting it fetches the
-summoner; calling a *relation* fetches **only** that resource — the summoner call
-is skipped, and the routing is derived for you.
+`byPuuid(...)` returns a chainable query builder (a `SummonerRef`). Calling
+`.execute()` on it fetches the summoner; calling a *relation* returns its **own**
+builder that, when executed, fetches **only** that resource — the summoner call is
+skipped, and the routing is derived for you.
 
 ```ts
 // BEFORE — twisted: two round-trips, manual region math
@@ -156,7 +184,7 @@ const { response: ids } = await lol.MatchV5.list(puuid, Constants.RegionGroups.A
 
 ```ts
 // AFTER — yasuo: ONE request; Region.KR → RegionGroup.ASIA is automatic
-const ids = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).matchIds({ count: 20 })
+const ids = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).matchIds({ count: 20 }).execute()
 ```
 
 ### Async-iterator pagination
@@ -199,8 +227,8 @@ ships a single-file dual **ESM + CJS** build with complete type declarations.
   chain:
 
   ```ts
-  const account = await yasuo.riot.account.byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA)
-  const summoner = await account.summoner(Region.KR)
+  const account  = await yasuo.riot.account.byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA).execute()
+  const summoner = await account.summoner(Region.KR).execute()
   ```
 
 - **`Region` vs `RegionGroup` are not interchangeable.** Platform APIs (Summoner,
@@ -209,23 +237,26 @@ ships a single-file dual **ESM + CJS** build with complete type declarations.
   as twisted's `Regions` / `RegionGroups` generics did — so a wrong routing value
   is a compile error, not a 404.
 
-- **Rate limiting is proactive by default.** twisted only reacted to a `429`;
-  yasuo reads Riot's rate-limit headers and paces requests *underneath* the
-  advertised limits, then still honours `retry-after` if one slips through. You
-  can tune or disable it with `new Yasuo({ key, rateLimit: false })`.
+- **Rate limiting is reactive by default; proactive is opt-in.** Like twisted,
+  yasuo reacts to a `429`/`503` and retries with backoff out of the box. On top of
+  that it can read Riot's rate-limit headers and pace requests *underneath* the
+  advertised limits — but that proactive pacing is **off unless you ask for it**:
+  `new Yasuo({ key, rateLimit: true })` (or pass an options object to tune it).
 
-- **Errors are typed subclasses.** twisted's `RateLimitError` / `GenericError`
-  become a `YasuoError` hierarchy:
+- **Errors surface on `.error`, not by throwing.** `.execute()` doesn't throw for
+  API failures — twisted's `RateLimitError` / `GenericError` become a `YasuoError`
+  hierarchy that lands on the result's `.error`:
 
   ```ts
-  import { NotFoundError, RateLimitError, ForbiddenError } from 'yasuo'
+  import { NotFoundError, RateLimitError } from 'yasuo'
 
-  try {
-    await yasuo.lol.summoner.byPuuid(puuid, Region.KR)
-  } catch (err) {
-    if (err instanceof NotFoundError) { /* 404 */ }
-    else if (err instanceof RateLimitError) { /* err.rateLimits.retryAfterSeconds */ }
-  }
+  const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute()
+  if (summoner.error instanceof NotFoundError) { /* 404 */ }
+  else if (summoner.error instanceof RateLimitError) { /* summoner.error.rateLimits.retryAfterSeconds */ }
+  else { /* success — summoner.summonerLevel, summoner.http.status */ }
+
+  // Prefer exceptions? Opt in with { throw: true }:
+  const strict = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute({ throw: true })
   ```
 
 ## See also

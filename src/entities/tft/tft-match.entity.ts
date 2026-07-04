@@ -1,7 +1,7 @@
 import type { TftMatchDTO, TftParticipantDTO } from '../../dto/tft/match.dto'
 import { type Region, regionFromPlatformId } from '../../enums/region'
 import { Entity } from '../entity'
-import type { TftSummonerEntity } from './tft-summoner.entity'
+import type { TftSummonerRef } from './tft-summoner-ref'
 
 export interface TftMatchEntity extends TftMatchDTO {}
 
@@ -37,19 +37,18 @@ export class TftMatchEntity extends Entity<TftMatchDTO> {
   }
 
   /**
-   * Resolve summoner entities for every participant.
+   * Lazy {@link TftSummonerRef}s for every participant. Call `.execute()` on the
+   * ones you need.
    *
    * @throws {Error} If the region cannot be derived from the match id.
    */
-  summoners(): Promise<TftSummonerEntity[]> {
+  summoners(): TftSummonerRef[] {
     const region = this.platformRegion()
     if (region === null) {
       throw new Error(`Cannot derive region from TFT match id "${this.id}"`)
     }
-    return Promise.all(
-      this.info.participants.map((participant) =>
-        this.context.client.tft.summoner.byPuuid(participant.puuid, region),
-      ),
+    return this.info.participants.map((participant) =>
+      this.context.client.tft.summoner.byPuuid(participant.puuid, region),
     )
   }
 }

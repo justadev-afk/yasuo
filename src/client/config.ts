@@ -1,5 +1,6 @@
 import { type CacheStore, MemoryCache } from '../core/cache'
 import type { HttpClient } from '../core/http/http-client'
+import type { HttpMiddleware } from '../core/http/middleware'
 import { type LogLevel, type Logger, createConsoleLogger, resolveLogLevel } from '../core/logger'
 import type { RateLimiterOptions } from '../core/rate-limit/rate-limiter'
 import { DEFAULT_BASE_URL } from '../endpoints/endpoint'
@@ -52,9 +53,9 @@ export interface YasuoConfig {
    */
   baseUrl?: string
   /**
-   * Proactive rate limiter. `true` (default) enables it with header-driven
-   * defaults; `false` disables proactive throttling (reactive retries remain);
-   * an object customises it.
+   * Proactive rate limiter. **Off by default** — you never have to configure
+   * limits, and reactive `429`/`503` retries still protect you. Pass `true` to
+   * enable header-driven proactive pacing, or an object to customise it.
    */
   rateLimit?: boolean | RateLimiterOptions
   /**
@@ -67,8 +68,19 @@ export interface YasuoConfig {
    * (`Infinity`); the rate limiter still paces them.
    */
   concurrency?: number
-  /** Custom transport. Defaults to a `fetch`-based client. */
+  /**
+   * Custom transport. Any object implementing {@link HttpClient} (a single
+   * `send(request)` method) can be injected — e.g. one backed by `undici`, a
+   * proxy, or a mock in tests. Defaults to a `fetch`-based client.
+   */
   httpClient?: HttpClient
+  /**
+   * Global request middleware, applied to **every** request (across all
+   * services) in registration order — the first is the outermost layer. They
+   * stack on top of any service-scoped middleware added via `namespace.use(...)`.
+   * More can be added at runtime with {@link Yasuo.use}.
+   */
+  middleware?: HttpMiddleware[]
   /**
    * Response cache. `true` enables an in-memory cache; an object customises the
    * store/TTL; omitted/`false` disables caching.
@@ -132,12 +144,16 @@ export function resolveRetryOptions(retry: YasuoConfig['retry']): ResolvedRetryO
 /**
  * Normalise the user-facing rate-limit option (or a boolean shorthand) into
  * {@link RateLimiterOptions}.
+ *
+ * Proactive throttling is **opt-in**: when unset it stays off, so a caller never
+ * has to configure limits — reactive `429`/`503` retries still protect them.
+ * Pass `true` (or an options object) to enable proactive pacing.
  */
 export function resolveRateLimiterOptions(rateLimit: YasuoConfig['rateLimit']): RateLimiterOptions {
-  if (rateLimit === false) {
+  if (rateLimit === undefined || rateLimit === false) {
     return { enabled: false }
   }
-  if (rateLimit === undefined || rateLimit === true) {
+  if (rateLimit === true) {
     return { enabled: true }
   }
   return { enabled: true, ...rateLimit }

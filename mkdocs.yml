@@ -1,0 +1,97 @@
+site_name: yasuo
+site_description: >-
+  The modern, zero-dependency TypeScript client for the Riot Games API —
+  League of Legends, Teamfight Tactics and the Riot Account API.
+site_url: https://justadev-afk.github.io/yasuo/
+site_author: justadev-afk
+
+repo_name: justadev-afk/yasuo
+repo_url: https://github.com/justadev-afk/yasuo
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; justadev-afk — MIT licensed
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/sword-cross
+  favicon: https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/2694.png
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to system preference
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Guides:
+      - Entities & lazy relations: entities-and-relations.md
+      - Rate limiting: rate-limiting.md
+      - Transport & middleware: http-and-middleware.md
+      - Caching: caching.md
+      - Logging: logging.md
+      - Pagination: pagination.md
+      - Errors: errors.md
+  - Reference:
+      - Endpoint coverage: endpoints.md
+      - Architecture: architecture.md
+  - Migrating from twisted: migrating-from-twisted.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/justadev-afk/yasuo
+    - icon: fontawesome/brands/npm
+      link: https://www.npmjs.com/package/yasuo

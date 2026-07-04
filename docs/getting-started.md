@@ -49,7 +49,7 @@ Every field on `YasuoConfig` is optional and comes with a production-safe defaul
 | --- | --- | --- | --- |
 | `key` | `string` | `RIOT_API_KEY` env var | Your Riot API key. |
 | `baseUrl` | `string` | Riot's host | URL template with `{routing}`/`{game}` placeholders; override to route through a proxy. |
-| `rateLimit` | `boolean \| RateLimiterOptions` | `true` | Proactive limiter; `false` disables it (reactive retries stay on). |
+| `rateLimit` | `boolean \| RateLimiterOptions` | `false` | Proactive limiter, **off by default**; pass `true` to enable it (reactive retries stay on regardless). |
 | `retry` | `boolean \| RetryOptions` | `true` | Reactive retry policy for `429`/`503` (3 attempts, `retry-after`-aware). |
 | `concurrency` | `number` | `Infinity` | Cap on concurrent in-flight requests. |
 | `httpClient` | `HttpClient` | `fetch`-based | Custom transport. |
@@ -76,19 +76,23 @@ import { Yasuo, Region, RegionGroup } from 'yasuo'
 
 const yasuo = new Yasuo()
 
-// Riot IDs are resolved by the account API, which routes on a RegionGroup.
-const account = await yasuo.riot.account.byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA)
+// Every method returns a query builder; nothing hits the network until `.execute()`.
+// The account API routes on a RegionGroup and resolves the Riot ID.
+const account = await yasuo.riot.account
+  .byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA)
+  .execute()
 
-console.log(account.puuid)   // the stable, cross-game player id
+if (account.error) throw account.error  // API failures don't throw — you branch on `.error` yourself
+console.log(account.puuid)              // the stable, cross-game player id
 
 // The summoner API is platform-scoped, so it routes on a Region.
-const summoner = await yasuo.lol.summoner.byPuuid(account.puuid, Region.KR)
+const summoner = await yasuo.lol.summoner.byPuuid(account.puuid, Region.KR).execute()
 
-console.log(summoner.summonerLevel)     // typed DTO field, right on the entity
-console.log(summoner.rateLimits.app)    // rate-limit budget travels with the data
+console.log(summoner.summonerLevel)       // typed DTO field, right on the entity
+console.log(summoner.http.rateLimits.app) // rate-limit budget rides on the entity's `.http`
 ```
 
-Every method returns an **entity**: the DTO fields sit directly on it (`summoner.summonerLevel`), and the response metadata rides along — `summoner.rateLimits` for your remaining budget, `summoner.meta.status` and `summoner.meta.headers` for the raw response.
+Every method returns a **query builder** — `SingleQuery` or `CollectionQuery` — and nothing hits the network until you call `.execute()`. That resolves the **entity directly** — there is no wrapper to unpack. Its DTO fields sit right on it (so `summoner.summonerLevel` just works), the original error is on `.error`, and the response metadata rides alongside on `.http` — `.http.rateLimits` for your remaining budget, plus `.http.status`, `.http.headers` and the `.http.ok` flag. A failed request never throws: the DTO fields are absent and `.error` holds the error, so you branch on `.error` (or call `.execute({ throw: true })` when you'd rather throw, or `.execute({ raw: true })` for the untouched Riot payload). See [errors](errors.md) for the full picture.
 
 ## 5. Routing: platform vs. regional
 
@@ -99,23 +103,24 @@ Riot splits its APIs across two routing schemes, and yasuo mirrors that with two
 
 So `byRiotId` takes a `RegionGroup` while `byPuuid` takes a `Region` — the example above uses both.
 
-You rarely have to think about this once you start chaining. **Lazy relations derive their own routing:** a summoner fetched on `Region.KR` traverses to their match history on `RegionGroup.ASIA` automatically, and calling a relation runs *only* that request:
+You rarely have to think about this once you start chaining. **Lazy relations derive their own routing:** a summoner fetched on `Region.KR` traverses to their match history on `RegionGroup.ASIA` automatically, and executing a relation runs *only* that request:
 
 ```ts
-// One request — the account API resolves the Riot ID, then the relation
-// walks to the summoner's match ids on the correct region group for you:
-const matches = await account.summoner(Region.KR).matchIds({ count: 5 })
+// `account` is the entity from step 4. `.summoner(Region.KR)` returns a chainable
+// ref, and `.matchIds()` builds a query for ONLY the match list — the summoner
+// itself is never fetched. One request when you `.execute()`:
+const ids = await account.summoner(Region.KR).matchIds({ count: 5 }).execute()
 
-console.log(matches)                 // ['KR_1234…', …]
-console.log(matches.rateLimits.app)  // metadata travels with the data
+console.log(ids[0])                   // 'KR_1234…' — `ids` IS the Collection, indexed like an array
+console.log(ids.http.rateLimits.app)  // metadata rides on the collection's `.http`
 ```
 
 ## Next steps
 
-- [Entities & lazy relations](../docs/entities-and-relations.md) — how entities, metadata and chainable refs fit together.
-- [Rate limiting](../docs/rate-limiting.md) — the proactive limiter and reactive retries.
-- [Caching](../docs/caching.md) — opt-in response caching and custom stores.
-- [Logging](../docs/logging.md) — the leveled logger and env-driven config.
-- [Pagination](../docs/pagination.md) — async iterators for paginated endpoints.
-- [Errors](../docs/errors.md) — the typed `ApiError` hierarchy.
-- [Endpoint coverage](../docs/endpoints.md) — the full map of supported endpoints.
+- [Entities & lazy relations](entities-and-relations.md) — how responses, entities and chainable refs fit together.
+- [Rate limiting](rate-limiting.md) — the proactive limiter and reactive retries.
+- [Caching](caching.md) — opt-in response caching and custom stores.
+- [Logging](logging.md) — the leveled logger and env-driven config.
+- [Pagination](pagination.md) — async iterators for paginated endpoints.
+- [Errors](errors.md) — the typed `ApiError` hierarchy.
+- [Endpoint coverage](endpoints.md) — the full map of supported endpoints.

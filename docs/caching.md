@@ -59,7 +59,7 @@ A few consequences worth knowing:
 
 - **Keyed by the resolved URL.** Two calls that produce the same URL (same routing, path params and query) share a cache entry. Different query params are different keys.
 - **Only 2xx responses are cached.** Errors — `404`, `429`, `503` — are never stored, so a transient failure won't be served back to you until it expires.
-- **Each entry stores `{ data, meta }`.** A hit reconstructs the exact same entity *and* its metadata, so `summoner.meta.status`, `summoner.rateLimits` and friends are all present on a cached read, just as on a live one. (The `rateLimits` on a hit reflect the response that was cached, not a fresh measurement.)
+- **Each entry stores `{ data, meta }`.** A hit reconstructs the exact same result, so the entity's own fields, `result.http.status`, `result.http.rateLimits` and friends are all present on a cached read, just as on a live one. (The `rateLimits` on a hit reflect the response that was cached, not a fresh measurement.)
 - **TTL is per entry.** Each write stamps its own expiry; there's no global flush timer.
 
 ## `MemoryCache`

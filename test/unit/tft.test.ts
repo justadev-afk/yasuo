@@ -42,21 +42,22 @@ describe('TFT namespace', () => {
     ])
     const yasuo = client(http)
 
-    const ladder = await yasuo.tft.league.ratedLadder(Region.KR)
+    const ladder = await yasuo.tft.league.ratedLadder(Region.KR).execute()
 
+    expect(ladder.error).toBeNull()
     expect(ladder.length).toBe(2)
     expect(ladder[0]?.puuid).toBe('p1')
     expect(ladder[0]?.ratedRating).toBe(900)
     expect(http.callCount).toBe(1)
     expect(http.lastUrl).toContain('/tft/league/v1/rated-ladders/RANKED_TFT_TURBO/top')
     // Metadata travels with the collection.
-    expect(ladder.meta.status).toBe(200)
+    expect(ladder.http.status).toBe(200)
   })
 
   test('ratedLadder accepts an explicit queue enum', async () => {
     const http = new MockHttpClient([{ status: 200, body: [] }])
     const yasuo = client(http)
-    await yasuo.tft.league.ratedLadder(Region.KR, TftRatedLadderQueue.HYPER_ROLL)
+    await yasuo.tft.league.ratedLadder(Region.KR, TftRatedLadderQueue.HYPER_ROLL).execute()
     expect(http.lastUrl).toContain('RANKED_TFT_TURBO')
   })
 
@@ -76,7 +77,7 @@ describe('TFT namespace', () => {
       },
     ])
     const yasuo = client(http)
-    const ladder = await yasuo.tft.league.ratedLadder(Region.KR)
+    const ladder = await yasuo.tft.league.ratedLadder(Region.KR).execute()
     const row = ladder[0]
     expect(row).toBeDefined()
     // The relation is a chainable ref, no request made yet.

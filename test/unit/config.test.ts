@@ -36,13 +36,13 @@ describe('resolveRetryOptions', () => {
 })
 
 describe('resolveRateLimiterOptions', () => {
-  test('true/undefined enable the limiter', () => {
-    expect(resolveRateLimiterOptions(undefined)).toEqual({ enabled: true })
-    expect(resolveRateLimiterOptions(true)).toEqual({ enabled: true })
+  test('proactive limiting is OFF by default (undefined or false)', () => {
+    expect(resolveRateLimiterOptions(undefined)).toEqual({ enabled: false })
+    expect(resolveRateLimiterOptions(false)).toEqual({ enabled: false })
   })
 
-  test('false disables the limiter', () => {
-    expect(resolveRateLimiterOptions(false)).toEqual({ enabled: false })
+  test('true enables the limiter', () => {
+    expect(resolveRateLimiterOptions(true)).toEqual({ enabled: true })
   })
 
   test('an object keeps enabled true and spreads overrides', () => {

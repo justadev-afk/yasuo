@@ -2,9 +2,11 @@ import type { Paginator } from '../../core/pagination/paginator'
 import type { MatchIdsQuery, MatchStreamOptions } from '../../dto/lol/query.dto'
 import type { SummonerDTO } from '../../dto/lol/summoner.dto'
 import type { Region } from '../../enums/region'
-import type { Collection } from '../collection'
+import type { CollectionQuery } from '../../query/collection-query'
+import type { SingleQuery } from '../../query/single-query'
 import { Entity } from '../entity'
 import type { AccountEntity } from '../riot/account.entity'
+import type { ValueResult } from '../value-result'
 import type { ChampionMasteryEntity } from './champion-mastery.entity'
 import type { ClashPlayerEntity } from './clash-player.entity'
 import type { CurrentGameEntity } from './current-game.entity'
@@ -22,14 +24,13 @@ export interface SummonerEntity extends SummonerDTO {}
  * ranked entries, champion mastery, live game and match history without ever
  * re-passing the PUUID or routing value.
  *
- * The relation methods mirror {@link SummonerRef}; on a materialised entity they
- * still issue one request per relation (the summoner itself is already loaded).
+ * Each relation returns a query you run with `.execute()`.
  *
  * @example
  * ```ts
- * const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR)
- * const ranked   = await summoner.leagueEntries()       // Region.KR
- * const history  = await summoner.matches({ count: 5 }) // RegionGroup.ASIA, derived
+ * const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute()
+ * const ranked   = await summoner.leagueEntries().execute()        // Region.KR
+ * const history  = await summoner.matches({ count: 5 }).execute()  // RegionGroup.ASIA
  * ```
  */
 export class SummonerEntity extends Entity<SummonerDTO> {
@@ -39,23 +40,23 @@ export class SummonerEntity extends Entity<SummonerDTO> {
 
   /** A ref bound to this already-loaded summoner, reused for every relation. */
   private ref(): SummonerRef {
-    return new SummonerRef(this.context.client, this.puuid, this.region, () =>
-      Promise.resolve(this),
+    return new SummonerRef(this.context.client, this.puuid, this.region, (exec) =>
+      exec.throw && this.error ? Promise.reject(this.error) : Promise.resolve(this),
     )
   }
 
   /** Resolve the underlying Riot account (game name + tag line). */
-  account(): Promise<AccountEntity> {
+  account(): SingleQuery<AccountEntity> {
     return this.ref().account()
   }
 
   /** This summoner's ranked league entries in every queue. */
-  leagueEntries(): Promise<Collection<LeagueEntryEntity>> {
+  leagueEntries(): CollectionQuery<LeagueEntryEntity> {
     return this.ref().leagueEntries()
   }
 
   /** This summoner's champion mastery, one entry per champion played. */
-  championMasteries(): Promise<Collection<ChampionMasteryEntity>> {
+  championMasteries(): CollectionQuery<ChampionMasteryEntity> {
     return this.ref().championMasteries()
   }
 
@@ -64,7 +65,7 @@ export class SummonerEntity extends Entity<SummonerDTO> {
    *
    * @param count - How many top entries to return. Defaults to Riot's default (3).
    */
-  topChampionMasteries(count?: number): Promise<Collection<ChampionMasteryEntity>> {
+  topChampionMasteries(count?: number): CollectionQuery<ChampionMasteryEntity> {
     return this.ref().topChampionMasteries(count)
   }
 
@@ -73,12 +74,12 @@ export class SummonerEntity extends Entity<SummonerDTO> {
    *
    * @param championId - The champion id.
    */
-  championMastery(championId: number): Promise<ChampionMasteryEntity> {
+  championMastery(championId: number): SingleQuery<ChampionMasteryEntity> {
     return this.ref().championMastery(championId)
   }
 
   /** This summoner's total champion mastery score. */
-  masteryScore(): Promise<number> {
+  masteryScore(): SingleQuery<ValueResult<number>> {
     return this.ref().masteryScore()
   }
 
@@ -87,7 +88,7 @@ export class SummonerEntity extends Entity<SummonerDTO> {
    *
    * @param query - Optional filters (count, queue, type, time range…).
    */
-  matchIds(query?: MatchIdsQuery): Promise<Collection<string>> {
+  matchIds(query?: MatchIdsQuery): CollectionQuery<string> {
     return this.ref().matchIds(query)
   }
 
@@ -97,7 +98,7 @@ export class SummonerEntity extends Entity<SummonerDTO> {
    *
    * @param query - Optional filters (count, queue, type, time range…).
    */
-  matches(query?: MatchIdsQuery): Promise<MatchEntity[]> {
+  matches(query?: MatchIdsQuery): CollectionQuery<MatchEntity> {
     return this.ref().matches(query)
   }
 
@@ -120,17 +121,17 @@ export class SummonerEntity extends Entity<SummonerDTO> {
   }
 
   /** This summoner's live game, or `null` if they are not currently in one. */
-  activeGame(): Promise<CurrentGameEntity | null> {
+  activeGame(): SingleQuery<CurrentGameEntity | null> {
     return this.ref().activeGame()
   }
 
   /** This summoner's active Clash registrations. */
-  clashPlayers(): Promise<Collection<ClashPlayerEntity>> {
+  clashPlayers(): CollectionQuery<ClashPlayerEntity> {
     return this.ref().clashPlayers()
   }
 
   /** This summoner's challenge progress. */
-  challenges(): Promise<PlayerChallengesEntity> {
+  challenges(): SingleQuery<PlayerChallengesEntity> {
     return this.ref().challenges()
   }
 }

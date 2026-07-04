@@ -15,6 +15,11 @@ export type {
   YasuoConfig,
 } from './client/config'
 
+// Query builders + execute options
+export { SingleQuery } from './query/single-query'
+export { CollectionQuery } from './query/collection-query'
+export type { ExecuteOptions, QueryRunner } from './query/execute-options'
+
 // Enums (no magic strings)
 export * from './enums'
 
@@ -61,6 +66,14 @@ export {
   type HttpRequest,
   type HttpResponse,
 } from './core/http/http-client'
+
+// Request middleware (axios-style, global + per-service)
+export {
+  composeMiddleware,
+  type HttpHandler,
+  type HttpMiddleware,
+  type MiddlewareContext,
+} from './core/http/middleware'
 
 // Endpoints (advanced)
 export {

@@ -1,3 +1,4 @@
+import type { HttpResponse } from '../core/http/http-client'
 import type { RateLimits } from '../dto/common.dto'
 import { YasuoError } from './yasuo-error'
 
@@ -17,6 +18,8 @@ export interface ApiErrorInit {
   readonly body: unknown
   /** Raw, lower-cased response headers. */
   readonly headers: Readonly<Record<string, string>>
+  /** The original HTTP response, or `null` for transport/network failures. */
+  readonly response?: HttpResponse | null
 }
 
 /**
@@ -37,6 +40,8 @@ export class ApiError extends YasuoError {
   readonly body: unknown
   /** Raw, lower-cased response headers. */
   readonly headers: Readonly<Record<string, string>>
+  /** The original HTTP response, or `null` for transport/network failures. */
+  readonly response: HttpResponse | null
 
   constructor(init: ApiErrorInit, message?: string) {
     super(message ?? `Riot API request failed with status ${init.status} (${init.url})`)
@@ -46,5 +51,6 @@ export class ApiError extends YasuoError {
     this.rateLimits = init.rateLimits
     this.body = init.body
     this.headers = init.headers
+    this.response = init.response ?? null
   }
 }

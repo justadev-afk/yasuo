@@ -1,0 +1,8 @@
+[test]
+# Coverage is collected on demand (the `test`/`test:unit` scripts pass
+# `--coverage`). When collected, line/statement coverage must stay at or above
+# 95% — see the coverage rule in CLAUDE.md. Function coverage is not gated: Bun
+# under-counts declaration-merged entity accessors, so the line metric is the
+# meaningful one.
+coverageThreshold = { line = 0.95, statement = 0.95 }
+coverageSkipTestFiles = true

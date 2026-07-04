@@ -1,6 +1,7 @@
 import type { AccountDTO } from '../../dto/riot/account.dto'
 import type { Game } from '../../enums/game'
 import type { AccountRegionGroup, Region } from '../../enums/region'
+import type { SingleQuery } from '../../query/single-query'
 import { Entity } from '../entity'
 import type { SummonerRef } from '../lol/summoner-ref'
 import type { TftSummonerRef } from '../tft/tft-summoner-ref'
@@ -15,9 +16,9 @@ export interface AccountEntity extends AccountDTO {}
  *
  * @example
  * ```ts
- * const account = await yasuo.riot.account.byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA)
- * const summoner = await account.summoner(Region.KR) // -> SummonerRef (chainable)
- * const region   = await account.activeRegion(Game.LOL)
+ * const { data: account } = await yasuo.riot.account.byRiotId('Hide on bush', 'KR1', RegionGroup.ASIA).execute()
+ * const summoner = account.summoner(Region.KR)               // -> SummonerRef (chainable)
+ * const { data: region } = await account.activeRegion(Game.LOL).execute()
  * ```
  */
 export class AccountEntity extends Entity<AccountDTO> {
@@ -46,20 +47,20 @@ export class AccountEntity extends Entity<AccountDTO> {
   }
 
   /**
-   * Look up the player's active region for a game (LoL/TFT).
+   * The player's active region for a game (LoL/TFT).
    *
    * @param game - The game to resolve the active region for.
    */
-  activeRegion(game: Game): Promise<AccountRegionEntity> {
+  activeRegion(game: Game): SingleQuery<AccountRegionEntity> {
     return this.context.client.riot.account.activeRegion(game, this.puuid, this.routingGroup)
   }
 
   /**
-   * Look up the player's active shard for a game.
+   * The player's active shard for a game.
    *
    * @param game - The game to resolve the active shard for.
    */
-  activeShard(game: Game): Promise<ActiveShardEntity> {
+  activeShard(game: Game): SingleQuery<ActiveShardEntity> {
     return this.context.client.riot.account.activeShard(game, this.puuid, this.routingGroup)
   }
 }

@@ -1,6 +1,7 @@
 export { Collection } from './collection'
 export { Entity } from './entity'
 export type { EntityContext } from './entity-context'
+export { ValueResult } from './value-result'
 export { ChallengeConfigEntity } from './lol/challenge-config.entity'
 export { ChallengePercentilesEntity } from './lol/challenge-percentiles.entity'
 export { ChampionMasteryEntity } from './lol/champion-mastery.entity'

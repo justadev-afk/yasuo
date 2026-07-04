@@ -1,8 +1,9 @@
-import type { ChampionMasteryDTO } from '../../dto/lol/champion.dto'
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
-import type { Collection } from '../../entities/collection'
 import { ChampionMasteryEntity } from '../../entities/lol/champion-mastery.entity'
+import type { ValueResult } from '../../entities/value-result'
 import type { Region } from '../../enums/region'
+import type { CollectionQuery } from '../../query/collection-query'
+import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
 
 /**
@@ -10,71 +11,67 @@ import { BaseNamespace } from '../base-namespace'
  */
 export class LolMasteryNamespace extends BaseNamespace {
   /**
-   * Get all champion mastery entries for a player.
+   * All champion mastery entries for a player.
    *
    * @param puuid - The player's PUUID.
    * @param region - The platform region.
    */
-  async byPuuid(puuid: string, region: Region): Promise<Collection<ChampionMasteryEntity>> {
-    const fetched = await this.executor.request<ChampionMasteryDTO[]>(
+  byPuuid(puuid: string, region: Region): CollectionQuery<ChampionMasteryEntity> {
+    return this.many(
+      ChampionMasteryEntity,
       region,
       LOL_ENDPOINTS.masteryByPuuid,
+      this.regionContext(region),
       { pathParams: { puuid } },
     )
-    return this.toCollection(ChampionMasteryEntity, fetched, this.regionContext(region))
   }
 
   /**
-   * Get a player's mastery of a single champion.
+   * A player's mastery of a single champion.
    *
    * @param puuid - The player's PUUID.
    * @param championId - The champion id.
    * @param region - The platform region.
    */
-  async byChampion(
+  byChampion(
     puuid: string,
     championId: number,
     region: Region,
-  ): Promise<ChampionMasteryEntity> {
-    const fetched = await this.executor.request<ChampionMasteryDTO>(
+  ): SingleQuery<ChampionMasteryEntity> {
+    return this.single(
+      ChampionMasteryEntity,
       region,
       LOL_ENDPOINTS.masteryByPuuidChampion,
+      this.regionContext(region),
       { pathParams: { puuid, championId } },
     )
-    return this.toEntity(ChampionMasteryEntity, fetched, this.regionContext(region))
   }
 
   /**
-   * Get a player's highest champion masteries.
+   * A player's highest champion masteries.
    *
    * @param puuid - The player's PUUID.
    * @param region - The platform region.
    * @param count - How many top entries to return (Riot defaults to 3).
    */
-  async top(
-    puuid: string,
-    region: Region,
-    count?: number,
-  ): Promise<Collection<ChampionMasteryEntity>> {
-    const fetched = await this.executor.request<ChampionMasteryDTO[]>(
+  top(puuid: string, region: Region, count?: number): CollectionQuery<ChampionMasteryEntity> {
+    return this.many(
+      ChampionMasteryEntity,
       region,
       LOL_ENDPOINTS.masteryTop,
+      this.regionContext(region),
       { pathParams: { puuid }, query: { count } },
     )
-    return this.toCollection(ChampionMasteryEntity, fetched, this.regionContext(region))
   }
 
   /**
-   * Get a player's total champion mastery score.
+   * A player's total champion mastery score. The scalar `number` is boxed in a
+   * {@link ValueResult} — read it from `.value`.
    *
    * @param puuid - The player's PUUID.
    * @param region - The platform region.
-   * @returns The raw numeric score.
    */
-  async score(puuid: string, region: Region): Promise<number> {
-    const fetched = await this.executor.request<number>(region, LOL_ENDPOINTS.masteryScore, {
-      pathParams: { puuid },
-    })
-    return typeof fetched.data === 'number' ? fetched.data : 0
+  score(puuid: string, region: Region): SingleQuery<ValueResult<number>> {
+    return this.scalar<number>(region, LOL_ENDPOINTS.masteryScore, { pathParams: { puuid } })
   }
 }

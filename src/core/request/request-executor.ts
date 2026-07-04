@@ -11,12 +11,12 @@ import type { ResponseMeta } from '../../dto/common.dto'
 import type { Endpoint, PathParams, QueryParams } from '../../endpoints/endpoint'
 import { resolveRequest } from '../../endpoints/endpoint'
 import { HttpHeader, HttpMethod, HttpStatus } from '../../enums/http'
-import { apiErrorFromStatus } from '../../errors'
-import { ApiKeyMissingError } from '../../errors'
+import { ApiError, ApiKeyMissingError, apiErrorFromStatus } from '../../errors'
 import type { CacheStore } from '../cache'
-import { FetchHttpClient, type HttpClient } from '../http/http-client'
+import { FetchHttpClient, type HttpClient, type HttpResponse } from '../http/http-client'
+import { type HttpMiddleware, type MiddlewareContext, composeMiddleware } from '../http/middleware'
 import type { Logger } from '../logger'
-import { parseRateLimits } from '../rate-limit/rate-limit-headers'
+import { EMPTY_RATE_LIMITS, parseRateLimits } from '../rate-limit/rate-limit-headers'
 import { RateLimiter } from '../rate-limit/rate-limiter'
 import { Semaphore, sleep } from '../util'
 
@@ -30,6 +30,11 @@ export interface RequestOptions {
   readonly query?: QueryParams
   /** Abort signal to cancel the request. */
   readonly signal?: AbortSignal
+  /**
+   * Service-scoped middleware, applied inside the global middleware for this
+   * request only (a namespace passes its own {@link HttpMiddleware} list here).
+   */
+  readonly middleware?: readonly HttpMiddleware[]
 }
 
 /** The raw data + metadata produced by an executed request. */
@@ -64,6 +69,7 @@ export class RequestExecutor {
   private readonly logger: Logger
   private readonly cache: CacheStore | null
   private readonly cacheTtlMs: number
+  private readonly middleware: HttpMiddleware[]
 
   constructor(config: YasuoConfig) {
     this.key = config.key ?? readEnvKey()
@@ -73,6 +79,7 @@ export class RequestExecutor {
     this.semaphore = new Semaphore(config.concurrency ?? Number.POSITIVE_INFINITY)
     this.httpClient = config.httpClient ?? new FetchHttpClient()
     this.logger = resolveLogger(config)
+    this.middleware = [...(config.middleware ?? [])]
     const cache = resolveCacheOptions(config.cache)
     this.cache = cache.store
     this.cacheTtlMs = cache.ttlMs
@@ -81,6 +88,15 @@ export class RequestExecutor {
   /** Whether an API key is configured. */
   get hasKey(): boolean {
     return this.key.length > 0
+  }
+
+  /**
+   * Register a global {@link HttpMiddleware}, appended after any already
+   * present (so it becomes the innermost of the global layers). Applies to
+   * every subsequent request across all services.
+   */
+  use(middleware: HttpMiddleware): void {
+    this.middleware.push(middleware)
   }
 
   /**
@@ -123,12 +139,28 @@ export class RequestExecutor {
     const headers = { [HttpHeader.RIOT_TOKEN]: this.key }
     this.logger.debug(`GET ${url}`)
 
+    const middleware = options.middleware
+      ? [...this.middleware, ...options.middleware]
+      : this.middleware
+
     let attempt = 0
     for (;;) {
       await this.rateLimiter.acquire(appKey, methodKey)
-      const response = await this.semaphore.run(() =>
-        this.httpClient.send({ url, method: HttpMethod.GET, headers, signal: options.signal }),
+      const context: MiddlewareContext = { endpointId: endpoint.id, routing, attempt }
+      const handler = composeMiddleware(
+        middleware,
+        (request) => this.httpClient.send(request),
+        context,
       )
+      let response: HttpResponse
+      try {
+        response = await this.semaphore.run(() =>
+          handler({ url, method: HttpMethod.GET, headers, signal: options.signal }),
+        )
+      } catch (cause) {
+        this.logger.error(`request errored ${url}: ${String(cause)}`)
+        throw networkError(url, endpoint.id, cause)
+      }
       const rateLimits = parseRateLimits(response.headers)
       // Learn/refresh the real limits from every response, success or failure.
       this.rateLimiter.update(appKey, methodKey, rateLimits)
@@ -177,6 +209,7 @@ export class RequestExecutor {
         rateLimits,
         body: response.body,
         headers: response.headers,
+        response,
       })
     }
   }
@@ -201,6 +234,23 @@ export class RequestExecutor {
     }
     return this.retry.backoffBaseMs * 2 ** (attempt - 1)
   }
+}
+
+/** Wrap a transport/network failure into an {@link ApiError} with status `0`. */
+function networkError(url: string, method: string, cause: unknown): ApiError {
+  const message = cause instanceof Error ? cause.message : String(cause)
+  return new ApiError(
+    {
+      status: 0,
+      url,
+      method,
+      rateLimits: EMPTY_RATE_LIMITS,
+      body: cause,
+      headers: {},
+      response: null,
+    },
+    `Network request to ${url} failed: ${message}`,
+  )
 }
 
 /** Read the API key from the environment when not passed explicitly. */

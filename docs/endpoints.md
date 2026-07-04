@@ -1,8 +1,10 @@
 # Endpoint coverage
 
-`yasuo` exposes every Riot Games API endpoint as a typed, discoverable method, grouped by game and Riot service. Reach each service through a game-scoped namespace on the client — `yasuo.lol.*`, `yasuo.tft.*`, `yasuo.riot.*` and `yasuo.dataDragon.*` — where every method returns rich **entities** (or lazy [`*Ref`](entities-and-relations.md) handles, `Collection`s, `Paginator`s or scalars) rather than raw wire DTOs. Platform-scoped services route by `Region`; `match`/`account` route by `RegionGroup`. This page is the exhaustive method-by-method reference.
+`yasuo` exposes every Riot Games API endpoint as a typed, discoverable method, grouped by game and Riot service. Reach each service through a game-scoped namespace on the client — `yasuo.lol.*`, `yasuo.tft.*`, `yasuo.riot.*` and `yasuo.dataDragon.*`. Each method returns a **query builder** you run with a terminal `.execute()`, which resolves — non-throwing — to a rich entity, a `Collection`, or a scalar `ValueResult` directly (never a raw wire DTO), each carrying its own [`.error`/`.http`](errors.md) (opt into throwing with `.execute({ throw: true })`, or get the raw payload with `.execute({ raw: true })`). Two exceptions: `stream*` methods return a [`Paginator`](pagination.md) you loop with `for await`, and `yasuo.dataDragon.*` returns raw DTO promises directly. Platform-scoped services route by `Region`; `match`/`account` route by `RegionGroup`. This page is the exhaustive method-by-method reference.
 
 **Coverage: 33 LoL + 14 TFT + 4 Riot Account endpoints + Data Dragon = full parity with the current Riot API.**
+
+> The **Returns** column shows what a query method's `.execute()` resolves to: an entity or a `Collection` **directly**, or — for scalar endpoints — a `ValueResult` you read via `.value`. `Paginator` rows are async-iterables you consume with `for await`; Data Dragon rows are raw payload promises. Lazy [`*Ref`](entities-and-relations.md) builders are `SingleQuery` subclasses — `.execute()` them, or chain a relation and `.execute()` that instead.
 
 Deprecated methods are flagged _(deprecated)_ — they still work, but Riot is phasing out encrypted summoner/account ids in favour of PUUIDs.
 
@@ -12,7 +14,7 @@ Deprecated methods are flagged _(deprecated)_ — they still work, but Riot is p
 
 | Method | Riot API | Routing | Returns |
 | --- | --- | --- | --- |
-| `yasuo.lol.summoner.byPuuid(puuid: string, region: Region)` | `SUMMONER-V4 /summoners/by-puuid/{puuid}` | Region | `SummonerRef` (lazy → `SummonerEntity`) |
+| `yasuo.lol.summoner.byPuuid(puuid: string, region: Region)` | `SUMMONER-V4 /summoners/by-puuid/{puuid}` | Region | lazy `SummonerRef extends SingleQuery` → `SummonerEntity` |
 | `yasuo.lol.summoner.byId(summonerId: string, region: Region)` _(deprecated)_ | `SUMMONER-V4 /summoners/{summonerId}` | Region | `SummonerEntity` |
 | `yasuo.lol.summoner.byAccountId(accountId: string, region: Region)` _(deprecated)_ | `SUMMONER-V4 /summoners/by-account/{accountId}` | Region | `SummonerEntity` |
 
@@ -37,7 +39,7 @@ Deprecated methods are flagged _(deprecated)_ — they still work, but Riot is p
 | `yasuo.lol.mastery.byPuuid(puuid: string, region: Region)` | `CHAMPION-MASTERY-V4 /champion-masteries/by-puuid/{puuid}` | Region | `Collection<ChampionMasteryEntity>` |
 | `yasuo.lol.mastery.byChampion(puuid: string, championId: number, region: Region)` | `CHAMPION-MASTERY-V4 /champion-masteries/by-puuid/{puuid}/by-champion/{championId}` | Region | `ChampionMasteryEntity` |
 | `yasuo.lol.mastery.top(puuid: string, region: Region, count?: number)` | `CHAMPION-MASTERY-V4 /champion-masteries/by-puuid/{puuid}/top` | Region | `Collection<ChampionMasteryEntity>` |
-| `yasuo.lol.mastery.score(puuid: string, region: Region)` | `CHAMPION-MASTERY-V4 /scores/by-puuid/{puuid}` | Region | `number` (scalar) |
+| `yasuo.lol.mastery.score(puuid: string, region: Region)` | `CHAMPION-MASTERY-V4 /scores/by-puuid/{puuid}` | Region | `ValueResult<number>` (scalar; read `.value`) |
 
 ### CHAMPION-V3 — `yasuo.lol.champion`
 
@@ -54,7 +56,7 @@ All match methods use **regional** routing (`RegionGroup`).
 | `yasuo.lol.match.get(matchId: string, regionGroup: RegionGroup)` | `MATCH-V5 /matches/{matchId}` | RegionGroup | `MatchEntity` |
 | `yasuo.lol.match.timeline(matchId: string, regionGroup: RegionGroup)` | `MATCH-V5 /matches/{matchId}/timeline` | RegionGroup | `MatchTimelineEntity` |
 | `yasuo.lol.match.idsByPuuid(puuid: string, regionGroup: RegionGroup, query?: MatchIdsQuery)` | `MATCH-V5 /matches/by-puuid/{puuid}/ids` | RegionGroup | `Collection<string>` |
-| `yasuo.lol.match.byPuuid(puuid: string, regionGroup: RegionGroup, query?: MatchIdsQuery)` | `MATCH-V5 /matches/by-puuid/{puuid}/ids` + `/matches/{id}` | RegionGroup | `MatchEntity[]` |
+| `yasuo.lol.match.byPuuid(puuid: string, regionGroup: RegionGroup, query?: MatchIdsQuery)` | `MATCH-V5 /matches/by-puuid/{puuid}/ids` + `/matches/{id}` | RegionGroup | `Collection<MatchEntity>` |
 | `yasuo.lol.match.streamIds(puuid: string, regionGroup: RegionGroup, options?: MatchStreamOptions)` | `MATCH-V5 /matches/by-puuid/{puuid}/ids` (auto-paged) | RegionGroup | `Paginator<string>` |
 | `yasuo.lol.match.streamMatches(puuid: string, regionGroup: RegionGroup, options?: MatchStreamOptions)` | `MATCH-V5 /matches/by-puuid/{puuid}/ids` + `/matches/{id}` (auto-paged) | RegionGroup | `Paginator<MatchEntity>` |
 
@@ -86,7 +88,7 @@ All match methods use **regional** routing (`RegionGroup`).
 | Method | Riot API | Routing | Returns |
 | --- | --- | --- | --- |
 | `yasuo.lol.challenges.config(region: Region)` | `LOL-CHALLENGES-V1 /challenges/config` | Region | `Collection<ChallengeConfigEntity>` |
-| `yasuo.lol.challenges.percentiles(region: Region)` | `LOL-CHALLENGES-V1 /challenges/percentiles` | Region | `AllChallengePercentilesDTO` |
+| `yasuo.lol.challenges.percentiles(region: Region)` | `LOL-CHALLENGES-V1 /challenges/percentiles` | Region | `ValueResult<AllChallengePercentilesDTO>` (scalar; read `.value`) |
 | `yasuo.lol.challenges.configById(challengeId: number, region: Region)` | `LOL-CHALLENGES-V1 /challenges/{challengeId}/config` | Region | `ChallengeConfigEntity` |
 | `yasuo.lol.challenges.leaderboards(challengeId: number, level: ChallengeLevel, region: Region, limit?: number)` | `LOL-CHALLENGES-V1 /challenges/{challengeId}/leaderboards/by-level/{level}` | Region | `Collection<ChallengeApexPlayerDTO>` |
 | `yasuo.lol.challenges.percentilesById(challengeId: number, region: Region)` | `LOL-CHALLENGES-V1 /challenges/{challengeId}/percentiles` | Region | `ChallengePercentilesEntity` |
@@ -98,7 +100,7 @@ All match methods use **regional** routing (`RegionGroup`).
 
 | Method | Riot API | Routing | Returns |
 | --- | --- | --- | --- |
-| `yasuo.tft.summoner.byPuuid(puuid: string, region: Region)` | `TFT-SUMMONER-V1 /summoners/by-puuid/{puuid}` | Region | `TftSummonerRef` (lazy → `TftSummonerEntity`) |
+| `yasuo.tft.summoner.byPuuid(puuid: string, region: Region)` | `TFT-SUMMONER-V1 /summoners/by-puuid/{puuid}` | Region | lazy `TftSummonerRef extends SingleQuery` → `TftSummonerEntity` |
 | `yasuo.tft.summoner.byId(summonerId: string, region: Region)` _(deprecated)_ | `TFT-SUMMONER-V1 /summoners/{summonerId}` | Region | `TftSummonerEntity` |
 
 ### TFT-LEAGUE-V1 — `yasuo.tft.league`
@@ -122,7 +124,7 @@ All match methods use **regional** routing (`RegionGroup`).
 | --- | --- | --- | --- |
 | `yasuo.tft.match.idsByPuuid(puuid: string, regionGroup: RegionGroup, query?: TftMatchIdsQuery)` | `TFT-MATCH-V1 /matches/by-puuid/{puuid}/ids` | RegionGroup | `Collection<string>` |
 | `yasuo.tft.match.get(matchId: string, regionGroup: RegionGroup)` | `TFT-MATCH-V1 /matches/{matchId}` | RegionGroup | `TftMatchEntity` |
-| `yasuo.tft.match.byPuuid(puuid: string, regionGroup: RegionGroup, query?: TftMatchIdsQuery)` | `TFT-MATCH-V1 /matches/by-puuid/{puuid}/ids` + `/matches/{id}` | RegionGroup | `TftMatchEntity[]` |
+| `yasuo.tft.match.byPuuid(puuid: string, regionGroup: RegionGroup, query?: TftMatchIdsQuery)` | `TFT-MATCH-V1 /matches/by-puuid/{puuid}/ids` + `/matches/{id}` | RegionGroup | `Collection<TftMatchEntity>` |
 | `yasuo.tft.match.streamMatches(puuid: string, regionGroup: RegionGroup, options?: TftMatchStreamOptions)` | `TFT-MATCH-V1 /matches/by-puuid/{puuid}/ids` + `/matches/{id}` (auto-paged) | RegionGroup | `Paginator<TftMatchEntity>` |
 
 ### SPECTATOR-TFT-V5 — `yasuo.tft.spectator`

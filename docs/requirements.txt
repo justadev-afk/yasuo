@@ -1,0 +1,4 @@
+# Pinned toolchain for building the MkDocs site (used by CI and `mkdocs serve`).
+mkdocs-material==9.5.39
+mkdocs==1.6.1
+pymdown-extensions==10.11.2

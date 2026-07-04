@@ -1,49 +1,66 @@
-import type { CurrentGameInfoDTO, FeaturedGamesDTO } from '../../dto/lol/spectator.dto'
+import type { CurrentGameInfoDTO } from '../../dto/lol/spectator.dto'
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { CurrentGameEntity } from '../../entities/lol/current-game.entity'
 import { FeaturedGamesEntity } from '../../entities/lol/featured-games.entity'
 import type { Region } from '../../enums/region'
-import { NotFoundError } from '../../errors'
-import { BaseNamespace } from '../base-namespace'
+import { ApiError, NotFoundError } from '../../errors'
+import { SingleQuery } from '../../query/single-query'
+import { BaseNamespace, metaFromError } from '../base-namespace'
 
 /**
  * SPECTATOR-V5 methods.
  */
 export class LolSpectatorNamespace extends BaseNamespace {
   /**
-   * Get a player's active (live) game.
+   * The player's live game, or `null` if they are not currently in one.
+   *
+   * A `404` (not in a game) is treated as an expected empty result, not an
+   * error — `.execute()` resolves to `null` and nothing is thrown, even with
+   * `{ throw: true }`. Any other failure comes back as a {@link CurrentGameEntity}
+   * carrying `.error`.
    *
    * @param puuid - The player's PUUID.
    * @param region - The platform region.
-   * @returns The current game, or `null` if the player is not in one.
    */
-  async active(puuid: string, region: Region): Promise<CurrentGameEntity | null> {
-    try {
-      const fetched = await this.executor.request<CurrentGameInfoDTO>(
-        region,
-        LOL_ENDPOINTS.spectatorActive,
-        { pathParams: { puuid } },
-      )
-      return this.toEntity(CurrentGameEntity, fetched, this.regionContext(region))
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        return null
+  active(puuid: string, region: Region): SingleQuery<CurrentGameEntity | null> {
+    const context = this.regionContext(region)
+    return new SingleQuery<CurrentGameEntity | null>(async (exec) => {
+      try {
+        const fetched = await this.request<CurrentGameInfoDTO>(
+          region,
+          LOL_ENDPOINTS.spectatorActive,
+          { pathParams: { puuid }, signal: exec.signal },
+        )
+        return exec.raw ? fetched.data : new CurrentGameEntity(fetched.data, fetched.meta, context)
+      } catch (error) {
+        // A 404 means "not in a game" — an expected empty result, not an error.
+        if (error instanceof NotFoundError) {
+          return null
+        }
+        if (!(error instanceof ApiError)) {
+          throw error
+        }
+        if (exec.throw) {
+          throw error
+        }
+        return exec.raw
+          ? error.body
+          : new CurrentGameEntity({} as CurrentGameInfoDTO, metaFromError(error), context, error)
       }
-      throw error
-    }
+    })
   }
 
   /**
-   * Get the list of featured games.
+   * A sample of featured games currently in progress.
    *
    * @param region - The platform region.
-   * @remarks Development API keys often receive `403` from this endpoint.
    */
-  async featured(region: Region): Promise<FeaturedGamesEntity> {
-    const fetched = await this.executor.request<FeaturedGamesDTO>(
+  featured(region: Region): SingleQuery<FeaturedGamesEntity> {
+    return this.single(
+      FeaturedGamesEntity,
       region,
       LOL_ENDPOINTS.spectatorFeatured,
+      this.regionContext(region),
     )
-    return this.toEntity(FeaturedGamesEntity, fetched, this.regionContext(region))
   }
 }

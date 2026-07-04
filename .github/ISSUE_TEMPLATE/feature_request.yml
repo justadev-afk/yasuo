@@ -1,0 +1,43 @@
+name: ✨ Feature request
+description: Suggest an endpoint, capability or ergonomics improvement.
+title: "feat: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the idea! Please check the roadmap and existing issues first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do that yasuo makes hard or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: >-
+        What would the API look like? A code sketch of the ideal call site helps a lot.
+      render: ts
+      placeholder: |
+        const { data } = await yasuo.lol.newThing.doIt(arg, Region.KR).execute()
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or workarounds you've thought about.
+  - type: input
+    id: riot-endpoint
+    attributes:
+      label: Riot endpoint (if applicable)
+      placeholder: "LEAGUE-V4 /lol/league/v4/…"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true

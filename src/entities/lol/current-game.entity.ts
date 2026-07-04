@@ -1,7 +1,7 @@
 import type { CurrentGameInfoDTO, CurrentGameParticipantDTO } from '../../dto/lol/spectator.dto'
 import { type Region, regionFromPlatformId } from '../../enums/region'
 import { Entity } from '../entity'
-import type { SummonerEntity } from './summoner.entity'
+import type { SummonerRef } from './summoner-ref'
 
 export interface CurrentGameEntity extends CurrentGameInfoDTO {}
 
@@ -15,11 +15,12 @@ export class CurrentGameEntity extends Entity<CurrentGameInfoDTO> {
   }
 
   /**
-   * Resolve summoner entities for every non-anonymised participant.
+   * Lazy {@link SummonerRef}s for every non-anonymised participant. Call
+   * `.execute()` on the ones you need.
    *
    * @throws {Error} If `platformId` is not a recognised region.
    */
-  summoners(): Promise<SummonerEntity[]> {
+  summoners(): SummonerRef[] {
     const region = this.platformRegion()
     if (region === null) {
       throw new Error(`Unrecognised platformId "${this.platformId}" — cannot resolve summoners`)
@@ -28,10 +29,8 @@ export class CurrentGameEntity extends Entity<CurrentGameInfoDTO> {
       (participant): participant is CurrentGameParticipantDTO & { puuid: string } =>
         typeof participant.puuid === 'string' && participant.puuid.length > 0,
     )
-    return Promise.all(
-      identified.map((participant) =>
-        this.context.client.lol.summoner.byPuuid(participant.puuid, region),
-      ),
+    return identified.map((participant) =>
+      this.context.client.lol.summoner.byPuuid(participant.puuid, region),
     )
   }
 }
