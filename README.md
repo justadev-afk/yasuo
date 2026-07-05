@@ -2,11 +2,12 @@
 
 **A modern, zero-dependency TypeScript client for the Riot Games API** — League of Legends, Teamfight Tactics and the Riot Account API.
 
-> [!WARNING]
-> **🚧 Under construction — not ready for use yet.** yasuo is being actively
-> designed and its public API is still changing between commits. It is **not**
-> published to npm and should **not** be used in any project yet. Watch this
-> space; a first release will be announced when the surface is stable.
+> [!TIP]
+> **See it in production — [yasuo.gg](https://yasuo.gg).** An open-source League
+> of Legends summoner-profile site — profiles, ranked, match history, champion
+> mastery and a public JSON API — built **entirely** on this library, running on
+> Cloudflare Workers. Live proof that yasuo works in a real app.
+> Source: [github.com/justadev-afk/yasuo.gg](https://github.com/justadev-afk/yasuo.gg).
 
 > yasuo is the evolution of [twisted](https://github.com/justadev-afk/twisted). It keeps everything that made twisted pleasant — a single client, typed responses, rate-limit info attached to every result — and rebuilds it around a Supabase-style **query builder**, lazy relation-aware chaining, a pluggable cache, a leveled logger and async iterators, all with **no runtime dependencies**.
 
@@ -291,6 +292,13 @@ Full docs live at **<https://docs.yasuo.gg/>**:
 - [Errors](https://docs.yasuo.gg/errors/)
 - [Endpoint coverage](https://docs.yasuo.gg/endpoints/)
 - [Migrating from twisted](https://docs.yasuo.gg/migrating-from-twisted/)
+
+## Showcase
+
+- [**yasuo.gg**](https://yasuo.gg) — a complete League of Legends summoner-profile
+  site and public JSON API, built entirely on yasuo and running on Cloudflare
+  Workers. A real, end-to-end demonstration that the library works
+  ([source](https://github.com/justadev-afk/yasuo.gg)).
 
 ## Migrating from twisted
 
