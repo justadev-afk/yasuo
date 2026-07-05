@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { MatchType } from '../../src/enums/match'
-import { ACCOUNT_GROUP, GAME_NAME, REGION, TAG_LINE, client, describeLive, puuid } from './support'
+import { ACCOUNT_GROUP, client, describeLive, GAME_NAME, puuid, REGION, TAG_LINE } from './support'
 
 describeLive('lol.summoner (live)', () => {
   test('fetches the summoner by PUUID', async () => {

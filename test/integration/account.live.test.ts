@@ -2,11 +2,11 @@ import { expect, test } from 'bun:test'
 import { Game } from '../../src/enums/game'
 import {
   ACCOUNT_GROUP,
-  GAME_NAME,
-  TAG_LINE,
   client,
   describeLive,
+  GAME_NAME,
   puuid,
+  TAG_LINE,
   tolerate,
 } from './support'
 

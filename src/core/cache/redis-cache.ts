@@ -1,4 +1,4 @@
-import type { CacheStore, CachedResult } from './cache-store'
+import type { CachedResult, CacheStore } from './cache-store'
 
 /**
  * A minimal Redis client shape compatible with `ioredis` and Bun's `RedisClient`

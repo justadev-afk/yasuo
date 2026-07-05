@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { CachedResult } from '../../src/core/cache'
-import { RedisCache } from '../../src/core/cache/redis-cache'
 import type { RedisClientLike } from '../../src/core/cache/redis-cache'
+import { RedisCache } from '../../src/core/cache/redis-cache'
 
 interface SetCall {
   key: string

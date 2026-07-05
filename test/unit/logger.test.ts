@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import {
-  LogLevel,
   createConsoleLogger,
+  LogLevel,
   parseLogLevel,
   resolveLogLevel,
 } from '../../src/core/logger'

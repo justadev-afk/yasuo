@@ -1,4 +1,4 @@
-import type { CacheStore, CachedResult } from './cache-store'
+import type { CachedResult, CacheStore } from './cache-store'
 
 /**
  * A minimal shape compatible with a Cloudflare Workers **KV namespace** binding

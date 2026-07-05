@@ -1,4 +1,4 @@
-import type { RateLimitWindow, RateLimits } from '../../dto/common.dto'
+import type { RateLimits, RateLimitWindow } from '../../dto/common.dto'
 import { RateLimitType } from '../../enums/rate-limit'
 import { type Clock, sleep, systemClock } from '../util'
 import { RateLimitBucket } from './rate-limit-bucket'

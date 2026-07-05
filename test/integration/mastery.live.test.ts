@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { REGION, client, describeLive, puuid } from './support'
+import { client, describeLive, puuid, REGION } from './support'
 
 describeLive('lol.mastery (live)', () => {
   test('reads the top champion masteries, capped by count', async () => {

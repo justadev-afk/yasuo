@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { REGION, client, describeLive, puuid, tolerate } from './support'
+import { client, describeLive, puuid, REGION, tolerate } from './support'
 
 describeLive('lol.spectator (live)', () => {
   test('the active game resolves to a game or null (404 is not an error)', async () => {

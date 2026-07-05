@@ -1,6 +1,6 @@
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
-import { SummonerRef } from '../../entities/lol/summoner-ref'
 import { SummonerEntity } from '../../entities/lol/summoner.entity'
+import { SummonerRef } from '../../entities/lol/summoner-ref'
 import type { Region } from '../../enums/region'
 import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'

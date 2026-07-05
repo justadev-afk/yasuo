@@ -1,7 +1,7 @@
-import { type CacheStore, type CacheStoreLike, MemoryCache, coerceCacheStore } from '../core/cache'
+import { type CacheStore, type CacheStoreLike, coerceCacheStore, MemoryCache } from '../core/cache'
 import type { HttpClient } from '../core/http/http-client'
 import type { HttpMiddleware } from '../core/http/middleware'
-import { type LogLevel, type Logger, createConsoleLogger, resolveLogLevel } from '../core/logger'
+import { createConsoleLogger, type Logger, type LogLevel, resolveLogLevel } from '../core/logger'
 import type { RateLimiterOptions } from '../core/rate-limit/rate-limiter'
 import { DEFAULT_BASE_URL } from '../endpoints/endpoint'
 

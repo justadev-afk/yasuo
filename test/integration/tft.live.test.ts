@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { MATCH_GROUP, REGION, client, describeLive, puuid, tolerate } from './support'
+import { client, describeLive, MATCH_GROUP, puuid, REGION, tolerate } from './support'
 
 /**
  * TFT endpoints (Summoner/Match/League) are gated behind a production key — a

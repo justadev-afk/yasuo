@@ -1,4 +1,4 @@
-import type { RateLimitWindow, RateLimits } from '../../dto/common.dto'
+import type { RateLimits, RateLimitWindow } from '../../dto/common.dto'
 import { HttpHeader } from '../../enums/http'
 import { RateLimitType } from '../../enums/rate-limit'
 

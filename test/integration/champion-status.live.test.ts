@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { REGION, client, describeLive } from './support'
+import { client, describeLive, REGION } from './support'
 
 describeLive('lol.champion + lol.status (live)', () => {
   test('reads the free champion rotation (normalised across API shapes)', async () => {

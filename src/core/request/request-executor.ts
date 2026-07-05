@@ -1,11 +1,11 @@
 import {
   type ResolvedRetryOptions,
-  type YasuoConfig,
   resolveBaseUrl,
   resolveCacheOptions,
   resolveLogger,
   resolveRateLimiterOptions,
   resolveRetryOptions,
+  type YasuoConfig,
 } from '../../client/config'
 import type { ResponseMeta } from '../../dto/common.dto'
 import type { Endpoint, PathParams, QueryParams } from '../../endpoints/endpoint'
@@ -14,7 +14,7 @@ import { HttpHeader, HttpMethod, HttpStatus } from '../../enums/http'
 import { ApiError, ApiKeyMissingError, apiErrorFromStatus } from '../../errors'
 import type { CacheStore } from '../cache'
 import { FetchHttpClient, type HttpClient, type HttpResponse } from '../http/http-client'
-import { type HttpMiddleware, type MiddlewareContext, composeMiddleware } from '../http/middleware'
+import { composeMiddleware, type HttpMiddleware, type MiddlewareContext } from '../http/middleware'
 import type { Logger } from '../logger'
 import { EMPTY_RATE_LIMITS, parseRateLimits } from '../rate-limit/rate-limit-headers'
 import { RateLimiter } from '../rate-limit/rate-limiter'

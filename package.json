@@ -14,7 +14,11 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "sideEffects": false,
   "engines": {
     "bun": ">=1.0.0",
@@ -70,5 +74,7 @@
   "peerDependencies": {
     "typescript": "^5"
   },
-  "trustedDependencies": ["@biomejs/biome"]
+  "trustedDependencies": [
+    "@biomejs/biome"
+  ]
 }

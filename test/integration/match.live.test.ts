@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { MATCH_GROUP, client, describeLive, puuid } from './support'
+import { client, describeLive, MATCH_GROUP, puuid } from './support'
 
 describeLive('lol.match (live)', () => {
   test('lists match ids with filters, then fetches one full match + its timeline', async () => {

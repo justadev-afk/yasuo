@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  buildQueryString,
   DEFAULT_BASE_URL,
   type Endpoint,
-  buildQueryString,
   resolveRequest,
 } from '../../src/endpoints/endpoint'
 import { Game } from '../../src/enums/game'

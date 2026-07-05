@@ -4,6 +4,6 @@
 # literal text with no highlighting). Markdown is pinned too so CI can't drift
 # onto an incompatible combo.
 mkdocs==1.6.1
-mkdocs-material==9.5.39
-pymdown-extensions==11.0.1
+mkdocs-material==9.7.6
+pymdown-extensions==10.21.3
 Markdown==3.9

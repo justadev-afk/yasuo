@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import { Division, RankedQueue, Tier } from '../../src/enums/ranked'
-import { REGION, client, describeLive, puuid } from './support'
+import { client, describeLive, puuid, REGION } from './support'
 
 describeLive('lol.league (live)', () => {
   test('reads a player’s ranked entries (may be empty)', async () => {

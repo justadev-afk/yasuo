@@ -1,5 +1,5 @@
 import { type Clock, systemClock } from '../util'
-import type { CacheStore, CachedResult } from './cache-store'
+import type { CachedResult, CacheStore } from './cache-store'
 
 /** Options for an in-memory {@link MemoryCache}. */
 export interface MemoryCacheOptions {

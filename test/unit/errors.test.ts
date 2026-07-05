@@ -3,13 +3,13 @@ import { EMPTY_RATE_LIMITS } from '../../src/core/rate-limit/rate-limit-headers'
 import { HttpStatus } from '../../src/enums/http'
 import {
   ApiError,
+  apiErrorFromStatus,
   ForbiddenError,
   NotFoundError,
   RateLimitError,
   ServiceUnavailableError,
   UnauthorizedError,
   YasuoError,
-  apiErrorFromStatus,
 } from '../../src/errors'
 import type { ApiErrorInit } from '../../src/errors/api-error'
 

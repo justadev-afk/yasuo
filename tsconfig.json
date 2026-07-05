@@ -12,6 +12,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    // tsup injects a `baseUrl` for its dts rollup; TS 6.0 flags that as
+    // deprecated (removed in 7.0). Acknowledge it so `bun run build` stays green.
+    "ignoreDeprecations": "6.0",
 
     // Strictness — restrictive by design
     "strict": true,

@@ -188,12 +188,12 @@ async function safeLookup(): Promise<void> {
 
 export {
   resultShape,
-  walkAccount,
+  safeLookup,
+  staticData,
   streamLadder,
   tft,
-  staticData,
-  withRedis,
+  walkAccount,
   withCloudflareKV,
   withMiddleware,
-  safeLookup,
+  withRedis,
 }

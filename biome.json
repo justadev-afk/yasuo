@@ -1,16 +1,22 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
   },
   "files": {
-    "ignore": ["dist", "node_modules", "coverage", "*.min.js"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/coverage",
+      "!**/*.min.js",
+      "!**/docs",
+      "!**/site"
+    ]
   },
-  "organizeImports": {
-    "enabled": true
-  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -32,7 +38,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "complexity": {
         "useLiteralKeys": "error",
         "noForEach": "off",
@@ -50,7 +56,6 @@
         "useTemplate": "error",
         "useEnumInitializers": "error",
         "noParameterAssign": "error",
-        "useShorthandArrayType": "error",
         "useNodejsImportProtocol": "error",
         "useImportType": "error",
         "useExportType": "error",
@@ -59,19 +64,18 @@
         "noNamespace": "off",
         "useNamingConvention": "off",
         "useDefaultParameterLast": "error",
-        "useCollapsedElseIf": "error"
+        "useCollapsedElseIf": "error",
+        "useConsistentMemberAccessibility": "off"
       },
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsoleLog": "off",
         "noAssignInExpressions": "error",
         "noEmptyInterface": "off",
         "noUnsafeDeclarationMerging": "off",
-        "useAwait": "off"
+        "useAwait": "off",
+        "noConsole": { "level": "off", "options": { "allow": ["log"] } }
       },
-      "nursery": {
-        "useConsistentMemberAccessibility": "off"
-      }
+      "nursery": {}
     }
   }
 }

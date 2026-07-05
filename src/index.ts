@@ -5,8 +5,6 @@
  * @packageDocumentation
  */
 
-// Client
-export { Yasuo } from './client/yasuo'
 export type {
   CacheOptions,
   ResolvedCacheOptions,
@@ -14,30 +12,8 @@ export type {
   RetryOptions,
   YasuoConfig,
 } from './client/config'
-
-// Query builders + execute options
-export { SingleQuery } from './query/single-query'
-export { CollectionQuery } from './query/collection-query'
-export type { ExecuteOptions, QueryRunner } from './query/execute-options'
-
-// Enums (no magic strings)
-export * from './enums'
-
-// DTOs (raw Riot payload shapes)
-export * from './dto'
-
-// Entities (rich responses with lazy relations)
-export * from './entities'
-
-// Errors
-export * from './errors'
-
-// Pagination
-export { Paginator, type Page, type PaginatorConfig } from './core/pagination/paginator'
-
-// Rate limiting (advanced / custom limiters)
-export { RateLimiter, type RateLimiterOptions } from './core/rate-limit/rate-limiter'
-
+// Client
+export { Yasuo } from './client/yasuo'
 // Caching
 export {
   type CachedResult,
@@ -53,7 +29,20 @@ export {
   type RedisCacheOptions,
   type RedisClientLike,
 } from './core/cache'
-
+// HTTP transport (custom clients)
+export {
+  FetchHttpClient,
+  type HttpClient,
+  type HttpRequest,
+  type HttpResponse,
+} from './core/http/http-client'
+// Request middleware (axios-style, global + per-service)
+export {
+  composeMiddleware,
+  type HttpHandler,
+  type HttpMiddleware,
+  type MiddlewareContext,
+} from './core/http/middleware'
 // Logging
 export {
   createConsoleLogger,
@@ -63,23 +52,12 @@ export {
   parseLogLevel,
   resolveLogLevel,
 } from './core/logger'
-
-// HTTP transport (custom clients)
-export {
-  FetchHttpClient,
-  type HttpClient,
-  type HttpRequest,
-  type HttpResponse,
-} from './core/http/http-client'
-
-// Request middleware (axios-style, global + per-service)
-export {
-  composeMiddleware,
-  type HttpHandler,
-  type HttpMiddleware,
-  type MiddlewareContext,
-} from './core/http/middleware'
-
+// Pagination
+export { type Page, Paginator, type PaginatorConfig } from './core/pagination/paginator'
+// Rate limiting (advanced / custom limiters)
+export { RateLimiter, type RateLimiterOptions } from './core/rate-limit/rate-limiter'
+// DTOs (raw Riot payload shapes)
+export * from './dto'
 // Endpoints (advanced)
 export {
   type Endpoint,
@@ -87,3 +65,13 @@ export {
   RIOT_ENDPOINTS,
   TFT_ENDPOINTS,
 } from './endpoints'
+// Entities (rich responses with lazy relations)
+export * from './entities'
+// Enums (no magic strings)
+export * from './enums'
+// Errors
+export * from './errors'
+export { CollectionQuery } from './query/collection-query'
+export type { ExecuteOptions, QueryRunner } from './query/execute-options'
+// Query builders + execute options
+export { SingleQuery } from './query/single-query'

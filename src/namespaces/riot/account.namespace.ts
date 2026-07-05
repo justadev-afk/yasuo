@@ -1,6 +1,6 @@
 import { RIOT_ENDPOINTS } from '../../endpoints/riot'
-import { AccountRegionEntity } from '../../entities/riot/account-region.entity'
 import { AccountEntity } from '../../entities/riot/account.entity'
+import { AccountRegionEntity } from '../../entities/riot/account-region.entity'
 import { ActiveShardEntity } from '../../entities/riot/active-shard.entity'
 import type { Game } from '../../enums/game'
 import type { AccountRegionGroup } from '../../enums/region'
