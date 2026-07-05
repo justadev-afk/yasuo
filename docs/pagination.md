@@ -15,7 +15,7 @@ cursor is configurable, you can begin from **any offset or page** and resume
 later from exactly where you left off.
 
 ```ts
-import { Yasuo, RegionGroup } from 'yasuo'
+import { Yasuo, RegionGroup } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY })
 
@@ -121,7 +121,7 @@ Both take the same `MatchStreamOptions`:
 | `type` | `MatchType` | — | Match category. Cannot be combined with `queue`. |
 
 ```ts
-import { RegionGroup, MatchType } from 'yasuo'
+import { RegionGroup, MatchType } from 'yasuo.js'
 
 // Ranked matches only, 100 per request, but stop after 500:
 for await (const match of yasuo.lol.match.streamMatches(puuid, RegionGroup.ASIA, {
@@ -143,7 +143,7 @@ a whole tier/division, page by page (Riot pages the ladder, not offsets), and
 returns a `Paginator<LeagueEntryEntity>`:
 
 ```ts
-import { RankedQueue, Tier, Division, Region } from 'yasuo'
+import { RankedQueue, Tier, Division, Region } from 'yasuo.js'
 
 for await (const entry of yasuo.lol.league.streamEntries(
   RankedQueue.SOLO_5x5, Tier.DIAMOND, Division.I, Region.EUW,

@@ -85,7 +85,7 @@ const yasuo = new Yasuo({
 ### Examples
 
 ```ts
-import { Yasuo } from 'yasuo'
+import { Yasuo } from 'yasuo.js'
 
 // 1. Defaults — bounded reactive retries only; proactive pacing is off. Nothing to configure.
 const a = new Yasuo({ key })

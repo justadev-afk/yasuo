@@ -14,7 +14,7 @@ rate-limit info attached to every result — and rebuilds it around a Supabase-s
 logger and async iterators, all with **no runtime dependencies**.
 
 ```ts
-import { Yasuo, Region, RegionGroup } from 'yasuo'
+import { Yasuo, Region, RegionGroup } from 'yasuo.js'
 
 const yasuo = new Yasuo(process.env.RIOT_API_KEY)
 
@@ -63,9 +63,9 @@ const matches = await account.summoner(Region.KR).matchIds({ count: 5 }).execute
 ## Install
 
 ```bash
-bun add yasuo
+bun add yasuo.js
 # or
-npm install yasuo
+npm install yasuo.js
 ```
 
 yasuo targets Node 18+ / Bun / Deno and ships a single-file dual **ESM + CJS**

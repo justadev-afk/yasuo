@@ -29,7 +29,7 @@ A full match by id.
 - **Routing** — `RegionGroup`.
 
 ```ts
-import { RegionGroup } from 'yasuo'
+import { RegionGroup } from 'yasuo.js'
 
 const match = await yasuo.lol.match.get('KR_1234567890', RegionGroup.ASIA).execute()
 if (match.error) return
@@ -74,7 +74,7 @@ A single page of match ids for a player.
 - **Routing** — `RegionGroup`.
 
 ```ts
-import { MatchType } from 'yasuo'
+import { MatchType } from 'yasuo.js'
 
 const ids = await yasuo.lol.match
   .idsByPuuid(puuid, RegionGroup.ASIA, { count: 20, type: MatchType.RANKED })

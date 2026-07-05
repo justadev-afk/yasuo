@@ -7,7 +7,9 @@
 
 export type {
   CacheOptions,
+  NamespaceCacheOptions,
   ResolvedCacheOptions,
+  ResolvedNamespaceCache,
   ResolvedRetryOptions,
   RetryOptions,
   YasuoConfig,
@@ -72,6 +74,6 @@ export * from './enums'
 // Errors
 export * from './errors'
 export { CollectionQuery } from './query/collection-query'
-export type { ExecuteOptions, QueryRunner } from './query/execute-options'
+export type { ExecuteCacheOptions, ExecuteOptions, QueryRunner } from './query/execute-options'
 // Query builders + execute options
 export { SingleQuery } from './query/single-query'

@@ -2,6 +2,7 @@ import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { ClashPlayerEntity } from '../../entities/lol/clash-player.entity'
 import { ClashTeamEntity } from '../../entities/lol/clash-team.entity'
 import { ClashTournamentEntity } from '../../entities/lol/clash-tournament.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Region } from '../../enums/region'
 import type { CollectionQuery } from '../../query/collection-query'
 import type { SingleQuery } from '../../query/single-query'
@@ -11,6 +12,8 @@ import { BaseNamespace } from '../base-namespace'
  * CLASH-V1 methods.
  */
 export class LolClashNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolClash
+
   /**
    * A player's active Clash registrations by PUUID.
    *

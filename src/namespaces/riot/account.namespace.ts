@@ -2,6 +2,7 @@ import { RIOT_ENDPOINTS } from '../../endpoints/riot'
 import { AccountEntity } from '../../entities/riot/account.entity'
 import { AccountRegionEntity } from '../../entities/riot/account-region.entity'
 import { ActiveShardEntity } from '../../entities/riot/active-shard.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Game } from '../../enums/game'
 import type { AccountRegionGroup } from '../../enums/region'
 import type { SingleQuery } from '../../query/single-query'
@@ -11,6 +12,8 @@ import { BaseNamespace } from '../base-namespace'
  * ACCOUNT-V1 methods.
  */
 export class RiotAccountNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.RiotAccount
+
   /**
    * A player's active region for a game.
    *

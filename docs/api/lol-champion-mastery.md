@@ -25,7 +25,7 @@ All champion-mastery entries for a player.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const all = await yasuo.lol.mastery.byPuuid(puuid, Region.KR).execute()
 if (all.error) return

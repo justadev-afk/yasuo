@@ -11,16 +11,16 @@ Caching earns you two things:
 - **Latency.** A hit is an in-process (or Redis) lookup, not a network round-trip to Riot.
 - **Rate-limit budget.** yasuo checks the cache *before* the proactive rate limiter. A hit never acquires a limiter slot, so cached reads don't count against your app or method limits at all.
 
-The trade-off is staleness: a cached entry can be up to its TTL old. Tune the TTL to the volatility of the data (see [TTL guidance](#ttl-guidance)).
+The trade-off is staleness: a cached entry can be up to its TTL old. Each namespace ships a **built-in default TTL** tuned to how volatile its data is, so you rarely have to think about it — but you can override any of them, globally or per call (see [Per-namespace defaults](#per-namespace-defaults) and [TTL guidance](#ttl-guidance)).
 
 ## Enabling the cache
 
-The simplest form uses an in-memory store with a 60-second TTL:
+The simplest form uses an in-memory store with each namespace's built-in default TTL:
 
 ```ts
-import { Yasuo } from 'yasuo'
+import { Yasuo } from 'yasuo.js'
 
-const yasuo = new Yasuo({ key, cache: true })   // in-memory MemoryCache, 60s TTL
+const yasuo = new Yasuo({ key, cache: true })   // in-memory MemoryCache, per-namespace TTLs
 ```
 
 For control over the store and TTL, pass a `CacheOptions` object:
@@ -28,7 +28,21 @@ For control over the store and TTL, pass a `CacheOptions` object:
 ```ts
 const yasuo = new Yasuo({
   key,
-  cache: { ttlMs: 30_000 },   // still in-memory, but expire after 30s
+  cache: { ttlMs: 30_000 },   // still in-memory, but a blanket 30s for every namespace
+})
+```
+
+To keep the tuned defaults but override just a few namespaces, use `namespaces`:
+
+```ts
+const yasuo = new Yasuo({
+  key,
+  cache: {
+    namespaces: {
+      'lol.match': { ttlMs: 86_400_000 }, // finished matches are immutable — cache a full day
+      'lol.spectator': { enabled: false }, // never cache live games
+    },
+  },
 })
 ```
 
@@ -38,13 +52,52 @@ const yasuo = new Yasuo({
 | --------- | ------------ | ---------------------- | ------------------------------------------------------------------ |
 | `enabled` | `boolean`    | `true` when an object is given | Master switch. Set `false` to disable without removing the config. |
 | `store`   | `CacheStoreLike` | a new `MemoryCache` | Backing store: a `CacheStore`, or a raw Redis client / Cloudflare KV namespace (auto-wrapped in `RedisCache`/`KVCache`). |
-| `ttlMs`   | `number`     | `60000` (60s)          | Time-to-live per entry, in milliseconds.                           |
+| `ttlMs`   | `number`     | per-namespace default  | **Blanket** TTL (ms) for every namespace, overriding their built-in defaults. Omit to keep each namespace's tuned default. |
+| `namespaces` | `Partial<Record<CacheNamespaceKey, { enabled?, ttlMs? }>>` | `{}` | Per-namespace overrides, keyed by access path (`'lol.match'`, …). A per-namespace `ttlMs` wins over the global one. |
 
 Shorthand mapping:
 
-- `cache: true` → in-memory store, 60s TTL.
+- `cache: true` → in-memory store, per-namespace default TTLs.
 - `cache: false` / omitted → caching off.
 - `cache: { … }` → enabled with your overrides (unless `enabled: false`).
+
+## Per-namespace defaults
+
+When the cache is on, each namespace uses its own default TTL, chosen for how fast its data moves. A global `ttlMs` overrides all of them; a `namespaces[key].ttlMs` overrides just one.
+
+| Namespace | Default TTL | | Namespace | Default TTL |
+| --------- | ----------- |-| --------- | ----------- |
+| `riot.account` | 1 h | | `lol.spectator` / `tft.spectator` | 10 s |
+| `lol.summoner` / `tft.summoner` | 5 min | | `lol.status` | 2 min |
+| `lol.league` / `tft.league` | 1 min | | `lol.clash` | 5 min |
+| `lol.mastery` | 5 min | | `lol.challenges` | 10 min |
+| `lol.champion` | 1 h | | `lol.match` / `tft.match` | 1 h |
+
+The keys are the same paths you use to reach a namespace (`yasuo.lol.match` → `'lol.match'`), exported as the `CacheNamespace` enum / `CacheNamespaceKey` type. An unmapped request (should one arise) falls back to a 60s global default.
+
+## Per-call overrides — `execute({ cache })`
+
+Any `.execute()` accepts a `cache` option scoped to that call's namespace:
+
+```ts
+// Force a fresh request but keep the cache warm for other readers (force-refresh):
+await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute({ cache: false })
+
+// Cache this one match for a full day, overriding the namespace default:
+await yasuo.lol.match.get(id, RegionGroup.ASIA).execute({ cache: { ttlMs: 86_400_000 } })
+
+// Force caching for a single call even where the namespace has it disabled:
+await yasuo.lol.spectator.byPuuid(puuid, Region.KR).execute({ cache: true })
+```
+
+| Value | Read | Write | Meaning |
+| ----- | ---- | ----- | ------- |
+| *(omitted)* | namespace default | namespace default | Normal behaviour. |
+| `false` / `{ enabled: false }` | **skipped** | yes¹ | **Force-refresh** — ignore any cached entry, but store the fresh response. |
+| `true` / `{ enabled: true }` | yes | yes | Force read+write, even for a namespace with caching disabled. |
+| `{ ttlMs }` | namespace default | yes, with this TTL | Cache normally but with a custom TTL for this write. |
+
+¹ The write still requires the cache to be globally enabled and the namespace not disabled by config. Skipping the read never disables the write — so `cache: false` refreshes the entry rather than bypassing the cache entirely.
 
 ## How it works
 
@@ -67,7 +120,7 @@ A few consequences worth knowing:
 The default store when you enable caching without naming one. A zero-dependency, in-process `Map` with per-entry TTL and a bounded size.
 
 ```ts
-import { Yasuo, MemoryCache } from 'yasuo'
+import { Yasuo, MemoryCache } from 'yasuo.js'
 
 const yasuo = new Yasuo({
   key,
@@ -91,7 +144,7 @@ Eviction is **FIFO** by insertion order: when the map exceeds `maxEntries`, the 
 `RedisCache` wraps any Redis-compatible client and stores values as JSON with a native Redis TTL, so **multiple processes share one cache**.
 
 ```ts
-import { Yasuo, RedisCache } from 'yasuo'
+import { Yasuo, RedisCache } from 'yasuo.js'
 
 const yasuo = new Yasuo({
   key,
@@ -126,7 +179,7 @@ Note that `RedisCache.clear()` intentionally throws — flushing a shared Redis 
 Running on Cloudflare Workers? `KVCache` wraps a **KV namespace binding** the same way `RedisCache` wraps a Redis client — so a cache is shared across every isolate and edge location, again with **no dependency**: yasuo needs only the three methods (`get`, `put`, `delete`) that the real binding already exposes.
 
 ```ts
-import { Yasuo, KVCache } from 'yasuo'
+import { Yasuo, KVCache } from 'yasuo.js'
 
 // `env.RIOT_CACHE` is a KV namespace binding declared in wrangler.toml.
 export default {
@@ -181,7 +234,7 @@ export interface CacheStore {
 A minimal `Map`-backed store (no TTL — for illustration) is just:
 
 ```ts
-import { Yasuo, type CacheStore, type CachedResult } from 'yasuo'
+import { Yasuo, type CacheStore, type CachedResult } from 'yasuo.js'
 
 class SimpleCache implements CacheStore {
   private readonly map = new Map<string, CachedResult>()
@@ -208,6 +261,6 @@ There's no universally right TTL — it depends on how fresh the data must be. A
 | Summoner profile, champion mastery            | low        | minutes            |
 | Champion rotation, Data Dragon / static lists | very low   | hours              |
 
-Immutable resources — a finished match, a specific Data Dragon version — can be cached aggressively; they never change once published. Volatile resources — a live game, a climbing ladder — want short TTLs so you don't serve stale state. When in doubt, start at the 60s default and lengthen it for the endpoints you know are slow-moving.
+Immutable resources — a finished match, a specific Data Dragon version — can be cached aggressively; they never change once published. Volatile resources — a live game, a climbing ladder — want short TTLs so you don't serve stale state. yasuo's [per-namespace defaults](#per-namespace-defaults) already encode this rule of thumb, so you usually get sensible freshness for free.
 
-If you need different TTLs for different endpoints, run more than one `Yasuo` client, each with its own cache config.
+If you need different TTLs for different endpoints, set them per namespace with `cache.namespaces` (or per call with `execute({ cache: { ttlMs } })`) — no need for more than one `Yasuo` client.

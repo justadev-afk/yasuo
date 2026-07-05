@@ -28,7 +28,7 @@ Look up a TFT summoner by PUUID.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const summoner = await yasuo.tft.summoner.byPuuid(puuid, Region.KR).execute()
 if (summoner.error) return
@@ -58,7 +58,7 @@ summoner is not fetched first:
 for you.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 // Runs ONE request — the league endpoint — not the summoner lookup:
 const ref = yasuo.tft.summoner.byPuuid(puuid, Region.EUW)
@@ -90,7 +90,7 @@ Look up a TFT summoner by encrypted summoner id.
   [`byPuuid`](#bypuuidpuuid-region).
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 // Throw on failure instead of attaching `.error`:
 const summoner = await yasuo.tft.summoner

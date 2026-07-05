@@ -32,7 +32,7 @@ carrying `.error`. So check `null` first, then `.error`.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const game = await yasuo.lol.spectator.active(puuid, Region.KR).execute()
 if (game === null) {

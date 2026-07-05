@@ -18,7 +18,7 @@ import type { YasuoConfig } from './config'
  *
  * @example
  * ```ts
- * import { Yasuo, Region, RegionGroup } from 'yasuo'
+ * import { Yasuo, Region, RegionGroup } from 'yasuo.js'
  *
  * const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY, cache: true, logLevel: LogLevel.INFO })
  *

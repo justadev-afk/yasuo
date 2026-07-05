@@ -25,7 +25,7 @@ There are three ways to turn logging on, in increasing order of control.
 The simplest switch. Pass a `LogLevel` and yasuo builds a console logger filtered to that level.
 
 ```ts
-import { Yasuo, LogLevel } from 'yasuo'
+import { Yasuo, LogLevel } from 'yasuo.js'
 
 const yasuo = new Yasuo({
   key: process.env.RIOT_API_KEY,
@@ -53,7 +53,7 @@ const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY })
 Supply your own `Logger` to route yasuo's output into your app's logging stack. An explicit `logger` **takes over completely** and ignores `logLevel` (your logger does its own filtering).
 
 ```ts
-import { Yasuo, type Logger } from 'yasuo'
+import { Yasuo, type Logger } from 'yasuo.js'
 
 const logger: Logger = {
   debug: (message, ...args) => console.debug('[riot]', message, ...args),
@@ -84,7 +84,7 @@ The `Logger` interface (`debug` / `info` / `warn` / `error`, each `(message: str
 
 ```ts
 import pino from 'pino'
-import { Yasuo, type Logger } from 'yasuo'
+import { Yasuo, type Logger } from 'yasuo.js'
 
 const log = pino({ name: 'riot-api', level: 'debug' })
 

@@ -7,6 +7,7 @@ import { Collection } from '../entities/collection'
 import type { Entity } from '../entities/entity'
 import type { EntityContext } from '../entities/entity-context'
 import { ValueResult } from '../entities/value-result'
+import type { CacheNamespace } from '../enums/cache-namespace'
 import { type Region, type RegionGroup, regionToRegionGroup } from '../enums/region'
 import { ApiError } from '../errors'
 import { CollectionQuery } from '../query/collection-query'
@@ -29,6 +30,12 @@ export type EntityConstructor<TData extends object, E extends Entity<TData>> = n
  * entity/collection/value carrying its own `.error`/`.http`.
  */
 export abstract class BaseNamespace {
+  /**
+   * Stable key identifying this namespace for per-namespace cache configuration.
+   * Each concrete namespace declares its own {@link CacheNamespace}; it is
+   * injected into every request so the executor can resolve the right TTL.
+   */
+  protected abstract readonly cacheNamespace: CacheNamespace
   /** Service-scoped middleware, stacked inside the client's global middleware. */
   private readonly middlewares: HttpMiddleware[] = []
 
@@ -102,6 +109,7 @@ export abstract class BaseNamespace {
     return this.executor.request<T>(routing, endpoint, {
       ...options,
       middleware: this.middlewares,
+      cacheNamespace: this.cacheNamespace,
     })
   }
 
@@ -120,7 +128,11 @@ export abstract class BaseNamespace {
     onFailure: (error: ApiError, meta: ResponseMeta) => R,
   ): Promise<R | unknown> {
     try {
-      const fetched = await this.request<unknown>(routing, endpoint, mergeSignal(options, exec))
+      const fetched = await this.request<unknown>(
+        routing,
+        endpoint,
+        mergeExecOptions(options, exec),
+      )
       return exec.raw ? fetched.data : onSuccess(fetched.data, fetched.meta)
     } catch (error) {
       if (!(error instanceof ApiError)) {
@@ -200,7 +212,17 @@ export function metaFromError(error: ApiError): ResponseMeta {
   }
 }
 
-/** Fold an execute-time abort signal into the request options. */
-function mergeSignal(options: RequestOptions | undefined, exec: ExecuteOptions): RequestOptions {
-  return exec.signal === undefined ? (options ?? {}) : { ...options, signal: exec.signal }
+/** Fold execute-time options (abort signal, per-call cache override) into the request options. */
+function mergeExecOptions(
+  options: RequestOptions | undefined,
+  exec: ExecuteOptions,
+): RequestOptions {
+  if (exec.signal === undefined && exec.cache === undefined) {
+    return options ?? {}
+  }
+  return {
+    ...options,
+    ...(exec.signal !== undefined ? { signal: exec.signal } : {}),
+    ...(exec.cache !== undefined ? { cache: exec.cache } : {}),
+  }
 }

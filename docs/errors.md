@@ -8,7 +8,7 @@ entity's DTO fields are absent and `.error` holds a typed error class; on succes
 one of the classes below — no thrown strings, no bare `Error`s.
 
 ```ts
-import { NotFoundError, RateLimitError } from 'yasuo'
+import { NotFoundError, RateLimitError } from 'yasuo.js'
 
 const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute()
 
@@ -53,7 +53,7 @@ directly, **not** `ApiError`: there is no status, url, or rate-limit data to
 attach.
 
 ```ts
-import { ApiKeyMissingError } from 'yasuo'
+import { ApiKeyMissingError } from 'yasuo.js'
 
 const yasuo = new Yasuo({})              // no key, and RIOT_API_KEY unset
 
@@ -91,7 +91,7 @@ The full context of the failed request travels *with* the error, so everything
 you need to diagnose it is on the entity's `.error`:
 
 ```ts
-import { ApiError } from 'yasuo'
+import { ApiError } from 'yasuo.js'
 
 const match = await yasuo.lol.match.get('KR_404', RegionGroup.ASIA).execute()
 
@@ -123,7 +123,7 @@ Pick the altitude that matches how much you care, then read `.error` off the
 result:
 
 ```ts
-import { ApiError, NotFoundError, RateLimitError, ForbiddenError } from 'yasuo'
+import { ApiError, NotFoundError, RateLimitError, ForbiddenError } from 'yasuo.js'
 
 const ids = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).matchIds({ count: 20 }).execute()
 
@@ -162,7 +162,7 @@ thrown. Catching `YasuoError` traps *anything* from yasuo — including
 `ApiKeyMissingError` — while letting unrelated errors propagate:
 
 ```ts
-import { YasuoError } from 'yasuo'
+import { YasuoError } from 'yasuo.js'
 
 try {
   const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute({ throw: true })

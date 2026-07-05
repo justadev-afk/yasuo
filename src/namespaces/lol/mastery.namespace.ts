@@ -1,6 +1,7 @@
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { ChampionMasteryEntity } from '../../entities/lol/champion-mastery.entity'
 import type { ValueResult } from '../../entities/value-result'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Region } from '../../enums/region'
 import type { CollectionQuery } from '../../query/collection-query'
 import type { SingleQuery } from '../../query/single-query'
@@ -10,6 +11,8 @@ import { BaseNamespace } from '../base-namespace'
  * CHAMPION-MASTERY-V4 methods.
  */
 export class LolMasteryNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolMastery
+
   /**
    * A player's mastery of a single champion.
    *

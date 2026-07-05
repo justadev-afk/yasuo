@@ -3,7 +3,7 @@
 Every method on the client returns a **query builder**, not a resource. Call `.execute()` and you get the **entity directly** (or a `Collection` of them) — there is no wrapper. The entity is a thin, typed thing whose DTO fields sit directly on it, that carries its own error on `.error` and the response metadata — rate limits, status, headers — on `.http`, and that puts every related resource one method call away. This is yasuo's replacement for twisted's `{ response, rateLimits }` envelope — nothing to unpack, nothing to thread through.
 
 ```ts
-import { Yasuo, Region, RegionGroup } from 'yasuo'
+import { Yasuo, Region, RegionGroup } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY })
 ```
@@ -182,7 +182,7 @@ const summoners = match.summoners()                // SummonerRef[], Region from
 The account entity itself is the entry point into both games:
 
 ```ts
-import { Game } from 'yasuo'
+import { Game } from 'yasuo.js'
 
 const account = await yasuo.riot.account.byRiotId('Faker', 'KR1', RegionGroup.ASIA).execute()
 if (account.error) return

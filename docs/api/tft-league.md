@@ -38,7 +38,7 @@ A player's TFT ranked entries by PUUID.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const entries = await yasuo.tft.league.byPuuid(puuid, Region.KR).execute()
 if (entries.error) return
@@ -58,7 +58,7 @@ A player's TFT ranked entries by encrypted summoner id.
 - **Deprecated** — prefer [`byPuuid`](#bypuuidpuuid-region).
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const entries = await yasuo.tft.league.bySummonerId(summonerId, Region.EUW).execute()
 console.log(entries.length)
@@ -75,7 +75,7 @@ A page of TFT ranked entries for a given tier and division.
 - **Routing** — `Region`.
 
 ```ts
-import { Tier, Division, Region } from 'yasuo'
+import { Tier, Division, Region } from 'yasuo.js'
 
 const page1 = await yasuo.tft.league
   .entries(Tier.DIAMOND, Division.I, Region.NA)
@@ -95,7 +95,7 @@ The TFT Challenger league.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const league = await yasuo.tft.league.challenger(Region.KR).execute()
 if (league.error) return
@@ -112,7 +112,7 @@ The TFT Grandmaster league.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const league = await yasuo.tft.league.grandmaster(Region.EUW).execute()
 console.log(league.entries.length)
@@ -127,7 +127,7 @@ The TFT Master league.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const league = await yasuo.tft.league.master(Region.NA).execute()
 console.log(league.tier, league.entries.length)
@@ -143,7 +143,7 @@ A TFT league by its league id.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 // Get the raw Riot payload instead of an entity:
 const raw = await yasuo.tft.league.byId(leagueId, Region.KR).execute({ raw: true })
@@ -160,7 +160,7 @@ The top of the Hyper Roll rated ladder.
 - **Routing** — `Region`.
 
 ```ts
-import { Region, TftRatedLadderQueue } from 'yasuo'
+import { Region, TftRatedLadderQueue } from 'yasuo.js'
 
 const ladder = await yasuo.tft.league
   .ratedLadder(Region.EUW, TftRatedLadderQueue.HYPER_ROLL)

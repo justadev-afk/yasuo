@@ -1,6 +1,7 @@
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { SummonerEntity } from '../../entities/lol/summoner.entity'
 import { SummonerRef } from '../../entities/lol/summoner-ref'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Region } from '../../enums/region'
 import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
@@ -9,6 +10,8 @@ import { BaseNamespace } from '../base-namespace'
  * SUMMONER-V4 methods.
  */
 export class LolSummonerNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolSummoner
+
   /**
    * Look up a summoner by encrypted account id.
    *

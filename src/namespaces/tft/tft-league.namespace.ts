@@ -2,6 +2,7 @@ import { TFT_ENDPOINTS } from '../../endpoints/tft'
 import { TftLeagueEntryEntity } from '../../entities/tft/tft-league-entry.entity'
 import { TftLeagueListEntity } from '../../entities/tft/tft-league-list.entity'
 import { TftRatedLadderEntryEntity } from '../../entities/tft/tft-rated-ladder-entry.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Division, Tier } from '../../enums/ranked'
 import type { Region } from '../../enums/region'
 import { TftRatedLadderQueue } from '../../enums/tft'
@@ -15,6 +16,8 @@ const DEFAULT_START_PAGE = 1
  * TFT-LEAGUE-V1 methods.
  */
 export class TftLeagueNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.TftLeague
+
   /**
    * A TFT league by id.
    *

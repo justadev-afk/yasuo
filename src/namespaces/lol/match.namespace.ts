@@ -5,8 +5,10 @@ import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { Collection } from '../../entities/collection'
 import { MatchEntity } from '../../entities/lol/match.entity'
 import { MatchTimelineEntity } from '../../entities/lol/match-timeline.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { RegionGroup } from '../../enums/region'
 import { CollectionQuery } from '../../query/collection-query'
+import { forwardExec } from '../../query/execute-options'
 import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
 
@@ -16,6 +18,8 @@ const DEFAULT_PAGE_SIZE = 100
  * MATCH-V5 methods. All use **regional** routing ({@link RegionGroup}).
  */
 export class LolMatchNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolMatch
+
   /**
    * A player's recent matches, fetched in full (one request per match).
    *
@@ -29,12 +33,15 @@ export class LolMatchNamespace extends BaseNamespace {
     query?: MatchIdsQuery,
   ): CollectionQuery<MatchEntity> {
     return new CollectionQuery<MatchEntity>(async (exec) => {
-      const ids = await this.idsByPuuid(puuid, regionGroup, query).execute()
+      const forward = forwardExec(exec)
+      const ids = await this.idsByPuuid(puuid, regionGroup, query).execute(forward)
       if (exec.raw) {
         if (ids.error) {
           return ids.error.body
         }
-        return Promise.all([...ids].map((id) => this.get(id, regionGroup).execute({ raw: true })))
+        return Promise.all(
+          [...ids].map((id) => this.get(id, regionGroup).execute({ ...forward, raw: true })),
+        )
       }
       if (ids.error) {
         if (exec.throw) {
@@ -43,7 +50,9 @@ export class LolMatchNamespace extends BaseNamespace {
         return Collection.create<MatchEntity>([], ids.http, ids.error)
       }
       const matches = await Promise.all(
-        [...ids].map((id) => this.get(id, regionGroup).execute(exec.throw ? { throw: true } : {})),
+        [...ids].map((id) =>
+          this.get(id, regionGroup).execute(exec.throw ? { ...forward, throw: true } : forward),
+        ),
       )
       const failed = matches.find((match) => match.error)
       if (failed?.error) {

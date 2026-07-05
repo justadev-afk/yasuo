@@ -1,4 +1,6 @@
 import {
+  type ResolvedCacheOptions,
+  type ResolvedNamespaceCache,
   type ResolvedRetryOptions,
   resolveBaseUrl,
   resolveCacheOptions,
@@ -10,8 +12,10 @@ import {
 import type { ResponseMeta } from '../../dto/common.dto'
 import type { Endpoint, PathParams, QueryParams } from '../../endpoints/endpoint'
 import { resolveRequest } from '../../endpoints/endpoint'
+import type { CacheNamespace } from '../../enums/cache-namespace'
 import { HttpHeader, HttpMethod, HttpStatus } from '../../enums/http'
 import { ApiError, ApiKeyMissingError, apiErrorFromStatus } from '../../errors'
+import type { ExecuteCacheOptions } from '../../query/execute-options'
 import type { CacheStore } from '../cache'
 import { FetchHttpClient, type HttpClient, type HttpResponse } from '../http/http-client'
 import { composeMiddleware, type HttpMiddleware, type MiddlewareContext } from '../http/middleware'
@@ -35,6 +39,13 @@ export interface RequestOptions {
    * request only (a namespace passes its own {@link HttpMiddleware} list here).
    */
   readonly middleware?: readonly HttpMiddleware[]
+  /**
+   * The namespace this request belongs to, used to look up its per-namespace
+   * cache settings. A namespace injects its own key automatically.
+   */
+  readonly cacheNamespace?: CacheNamespace
+  /** Per-call cache override, forwarded from `execute({ cache })`. */
+  readonly cache?: boolean | ExecuteCacheOptions
 }
 
 /** The raw data + metadata produced by an executed request. */
@@ -67,7 +78,7 @@ export class RequestExecutor {
 
   private readonly baseUrl: string
   private readonly cache: CacheStore | null
-  private readonly cacheTtlMs: number
+  private readonly cacheOptions: ResolvedCacheOptions
   private readonly httpClient: HttpClient
   private readonly key: string
   private readonly logger: Logger
@@ -85,9 +96,8 @@ export class RequestExecutor {
     this.httpClient = config.httpClient ?? new FetchHttpClient()
     this.logger = resolveLogger(config)
     this.middleware = [...(config.middleware ?? [])]
-    const cache = resolveCacheOptions(config.cache)
-    this.cache = cache.store
-    this.cacheTtlMs = cache.ttlMs
+    this.cacheOptions = resolveCacheOptions(config.cache)
+    this.cache = this.cacheOptions.store
   }
 
   /**
@@ -117,7 +127,8 @@ export class RequestExecutor {
       options.query,
     )
 
-    if (this.cache) {
+    const cacheControl = this.resolveCacheControl(options)
+    if (this.cache && cacheControl.read) {
       const cached = await this.cache.get(url)
       if (cached) {
         this.logger.debug(`cache hit ${url}`)
@@ -165,8 +176,8 @@ export class RequestExecutor {
 
       if (response.ok) {
         const result: Fetched<T> = { data: response.body as T, meta }
-        if (this.cache && this.cacheTtlMs > 0) {
-          await this.cache.set(url, result, this.cacheTtlMs)
+        if (this.cache && cacheControl.write && cacheControl.ttlMs > 0) {
+          await this.cache.set(url, result, cacheControl.ttlMs)
         }
         return result
       }
@@ -233,6 +244,51 @@ export class RequestExecutor {
         status === HttpStatus.SERVICE_UNAVAILABLE ||
         status === HttpStatus.GATEWAY_TIMEOUT)
     )
+  }
+
+  /**
+   * Resolve whether this request should read from and/or write to the cache,
+   * and with what TTL — folding the namespace's configured settings with the
+   * per-call `execute({ cache })` override.
+   *
+   * A per-call `false`/`{ enabled: false }` skips the **read** only: the fresh
+   * response is still written back (a force-refresh). `true`/`{ enabled: true }`
+   * forces both, even for a namespace whose caching is disabled.
+   */
+  private resolveCacheControl(options: RequestOptions): {
+    read: boolean
+    write: boolean
+    ttlMs: number
+  } {
+    if (!this.cache) {
+      return { read: false, write: false, ttlMs: 0 }
+    }
+    const nsKey = options.cacheNamespace
+    const base: ResolvedNamespaceCache =
+      nsKey !== undefined
+        ? this.cacheOptions.namespaces[nsKey]
+        : { enabled: this.cacheOptions.enabled, ttlMs: this.cacheOptions.ttlMs }
+    let read = base.enabled
+    let write = base.enabled
+    let ttlMs = base.ttlMs
+    const override = options.cache
+    if (override === true) {
+      read = true
+      write = true
+    } else if (override === false) {
+      read = false
+    } else if (override) {
+      if (override.enabled === true) {
+        read = true
+        write = true
+      } else if (override.enabled === false) {
+        read = false
+      }
+      if (override.ttlMs !== undefined) {
+        ttlMs = override.ttlMs
+      }
+    }
+    return { read, write, ttlMs }
   }
 }
 

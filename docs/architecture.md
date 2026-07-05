@@ -66,7 +66,7 @@ src/
 ├── query/              Deferred request builders (Supabase-style).
 │   ├── single-query.ts     SingleQuery<E> — `.execute()` resolves the entity/`ValueResult` directly.
 │   ├── collection-query.ts CollectionQuery<T> — `.execute()` resolves a `Collection<T>` directly.
-│   └── execute-options.ts  ExecuteOptions `{ throw?, raw?, signal? }` + the QueryRunner type.
+│   └── execute-options.ts  ExecuteOptions `{ throw?, raw?, signal?, cache? }` + the QueryRunner type.
 │
 ├── namespaces/         The methods users call. One namespace class per file.
 │   ├── base-namespace.ts   single()/many()/scalar()/scalarMany() query factories + the shared runResult() runner, use()/service middleware, contexts.
@@ -154,7 +154,7 @@ The docs are part of the public API, not an afterthought. **Whenever the public 
 
 - Every code block in `docs/` must compile against the current API: query builder + terminal `.execute()` resolving the entity/`Collection`/`ValueResult` **directly** (read `.error`/`.http`, and `.value` for scalars), the `{ throw: true }`/`{ raw: true }` opt-ins — no `YasuoResponse`, no `.unwrap()`, no thenable `await ref`.
 - `examples/basic-usage.ts` is the executable smoke-test for the docs — keep it in lock-step with the prose.
-- The docs are published with **MkDocs Material** to GitHub Pages at **<https://justadev-afk.github.io/yasuo/>**, which is the **canonical reference**. Keep internal cross-links as bare relative `.md` links (e.g. `[errors](errors.md)`) so MkDocs resolves them.
+- The docs are published with **MkDocs Material** to GitHub Pages at **<https://justadev-afk.github.io/yasuo.js/>**, which is the **canonical reference**. Keep internal cross-links as bare relative `.md` links (e.g. `[errors](errors.md)`) so MkDocs resolves them.
 
 ## Definition of done for a change
 

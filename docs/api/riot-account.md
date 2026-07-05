@@ -15,7 +15,7 @@ See [Entities & relations](../entities-and-relations.md) and
 [Errors](../errors.md).
 
 ```ts
-import { Yasuo, RegionGroup, Region, Game } from 'yasuo'
+import { Yasuo, RegionGroup, Region, Game } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY! })
 // Assume a `puuid` string already exists where used below.

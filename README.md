@@ -11,7 +11,7 @@
 > yasuo is the evolution of [twisted](https://github.com/justadev-afk/twisted). It keeps everything that made twisted pleasant — a single client, typed responses, rate-limit info attached to every result — and rebuilds it around a Supabase-style **query builder**, lazy relation-aware chaining, a pluggable cache, a leveled logger and async iterators, all with **no runtime dependencies**.
 
 ```ts
-import { Yasuo, Region, RegionGroup } from 'yasuo'
+import { Yasuo, Region, RegionGroup } from 'yasuo.js'
 
 const yasuo = new Yasuo(process.env.RIOT_API_KEY)
 
@@ -29,7 +29,7 @@ console.log(matches.error)        // null on success, the ApiError on failure
 console.log(matches.http.rateLimits.app)  // rate-limit budget travels with every result
 ```
 
-📚 **Full documentation: <https://justadev-afk.github.io/yasuo/>**
+📚 **Full documentation: <https://justadev-afk.github.io/yasuo.js/>**
 
 ---
 
@@ -54,9 +54,9 @@ console.log(matches.http.rateLimits.app)  // rate-limit budget travels with ever
 ## Install
 
 ```bash
-bun add yasuo
+bun add yasuo.js
 # or
-npm install yasuo
+npm install yasuo.js
 ```
 
 yasuo targets Node 18+ / Bun / Deno and ships a single-file dual **ESM + CJS** build with complete type declarations.
@@ -64,7 +64,7 @@ yasuo targets Node 18+ / Bun / Deno and ships a single-file dual **ESM + CJS** b
 ## Quick start
 
 ```ts
-import { Yasuo, Region, RegionGroup } from 'yasuo'
+import { Yasuo, Region, RegionGroup } from 'yasuo.js'
 
 // The key can be passed directly or read from the RIOT_API_KEY env var.
 const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY })
@@ -155,7 +155,7 @@ const timeline  = await match.timeline().execute()   // ids reused, region deriv
 Regions, queues, tiers, divisions, match types, challenge levels, HTTP details — all enums:
 
 ```ts
-import { Region, RegionGroup, RankedQueue, Tier, Division, MatchType } from 'yasuo'
+import { Region, RegionGroup, RankedQueue, Tier, Division, MatchType } from 'yasuo.js'
 
 // Async iterators throw on failure, which is idiomatic for `for await`:
 for await (const entry of yasuo.lol.league.streamEntries(
@@ -177,14 +177,14 @@ const yasuo = new Yasuo({
 })
 ```
 
-See [the rate-limiting guide](https://justadev-afk.github.io/yasuo/rate-limiting/).
+See [the rate-limiting guide](https://justadev-afk.github.io/yasuo.js/rate-limiting/).
 
 ## Caching
 
 Opt-in response caching, served before the rate limiter is even consulted. In-memory by default; bring your own store — **Redis** or **Cloudflare KV** need no dependency (yasuo just wants a client that matches `RedisClientLike` / `KVNamespaceLike`), or implement the `CacheStore` interface for anything else:
 
 ```ts
-import { Yasuo, RedisCache, KVCache } from 'yasuo'
+import { Yasuo, RedisCache, KVCache } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key, cache: true })                        // in-memory, 60s TTL
 const y2    = new Yasuo({ key, cache: { store: new RedisCache(redis), ttlMs: 30_000 } })
@@ -195,14 +195,14 @@ const y4    = new Yasuo({ key, cache: { store: redis } })
 const y5    = new Yasuo({ key, cache: { store: env.RIOT_CACHE } })
 ```
 
-See [the caching guide](https://justadev-afk.github.io/yasuo/caching/).
+See [the caching guide](https://justadev-afk.github.io/yasuo.js/caching/).
 
 ## Custom transport & middleware
 
 Inject any `HttpClient` (a single `send(request)` method) — a proxy, an `undici` pool, a mock in tests — and stack **axios-style middleware**. Middleware runs in an onion: **global** middleware (`yasuo.use(...)` or the `middleware` config) wraps **per-service** middleware (`yasuo.lol.summoner.use(...)`), which wraps the transport. Each can inspect or rewrite the request and response, short-circuit, or retry.
 
 ```ts
-import { Yasuo, type HttpMiddleware } from 'yasuo'
+import { Yasuo, type HttpMiddleware } from 'yasuo.js'
 
 const timing: HttpMiddleware = async (request, next, { endpointId }) => {
   const started = performance.now()
@@ -218,19 +218,19 @@ yasuo.use((request, next) => next({ ...request, headers: { ...request.headers, '
 yasuo.lol.match.use((request, next) => { console.debug('match', request.url); return next(request) })
 ```
 
-See [the transport & middleware guide](https://justadev-afk.github.io/yasuo/http-and-middleware/).
+See [the transport & middleware guide](https://justadev-afk.github.io/yasuo.js/http-and-middleware/).
 
 ## Logging
 
 A leveled logger driven by config or the `YASUO_LOG_LEVEL` / `LOG_LEVEL` env var (`debug` · `info` · `warn` · `error` · `silent`):
 
 ```ts
-import { Yasuo, LogLevel } from 'yasuo'
+import { Yasuo, LogLevel } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key, logLevel: LogLevel.DEBUG })  // or set YASUO_LOG_LEVEL=debug
 ```
 
-See [the logging guide](https://justadev-afk.github.io/yasuo/logging/).
+See [the logging guide](https://justadev-afk.github.io/yasuo.js/logging/).
 
 ## Pagination & async iterators
 
@@ -245,14 +245,14 @@ for await (const id of yasuo.lol.match.streamIds(puuid, RegionGroup.ASIA, { star
 const firstFifty = await yasuo.lol.match.streamIds(puuid, RegionGroup.ASIA).toArray(50)
 ```
 
-See [the pagination guide](https://justadev-afk.github.io/yasuo/pagination/).
+See [the pagination guide](https://justadev-afk.github.io/yasuo.js/pagination/).
 
 ## Error handling
 
 A request never throws for an API error — inspect the entity's `.error`, a typed subclass of `ApiError` (itself a `YasuoError`) that carries the original HTTP `response`:
 
 ```ts
-import { NotFoundError, RateLimitError, ForbiddenError } from 'yasuo'
+import { NotFoundError, RateLimitError, ForbiddenError } from 'yasuo.js'
 
 const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute()
 
@@ -263,7 +263,7 @@ else                                               { console.log(summoner.summon
 
 Prefer exceptions? `.execute({ throw: true })` throws that same `ApiError` instead of attaching it. Misuse (a missing/invalid key) always throws, regardless.
 
-See [the error-handling guide](https://justadev-afk.github.io/yasuo/errors/).
+See [the error-handling guide](https://justadev-afk.github.io/yasuo.js/errors/).
 
 ## API coverage
 
@@ -274,27 +274,27 @@ See [the error-handling guide](https://justadev-afk.github.io/yasuo/errors/).
 - **Riot** (4): Account (by PUUID / by Riot ID) · Active Shard · Active Region
 - **Data Dragon**: versions, champions, runes, static reference data
 
-See [the endpoint map](https://justadev-afk.github.io/yasuo/endpoints/) for the full list.
+See [the endpoint map](https://justadev-afk.github.io/yasuo.js/endpoints/) for the full list.
 
 ## Documentation
 
-Full docs live at **<https://justadev-afk.github.io/yasuo/>**:
+Full docs live at **<https://justadev-afk.github.io/yasuo.js/>**:
 
-- [Getting started](https://justadev-afk.github.io/yasuo/getting-started/)
-- [Architecture & contribution rules](https://justadev-afk.github.io/yasuo/architecture/)
-- [Entities & lazy relations](https://justadev-afk.github.io/yasuo/entities-and-relations/)
-- [Rate limiting](https://justadev-afk.github.io/yasuo/rate-limiting/)
-- [Caching](https://justadev-afk.github.io/yasuo/caching/)
-- [Logging](https://justadev-afk.github.io/yasuo/logging/)
-- [Transport & middleware](https://justadev-afk.github.io/yasuo/http-and-middleware/)
-- [Pagination](https://justadev-afk.github.io/yasuo/pagination/)
-- [Errors](https://justadev-afk.github.io/yasuo/errors/)
-- [Endpoint coverage](https://justadev-afk.github.io/yasuo/endpoints/)
-- [Migrating from twisted](https://justadev-afk.github.io/yasuo/migrating-from-twisted/)
+- [Getting started](https://justadev-afk.github.io/yasuo.js/getting-started/)
+- [Architecture & contribution rules](https://justadev-afk.github.io/yasuo.js/architecture/)
+- [Entities & lazy relations](https://justadev-afk.github.io/yasuo.js/entities-and-relations/)
+- [Rate limiting](https://justadev-afk.github.io/yasuo.js/rate-limiting/)
+- [Caching](https://justadev-afk.github.io/yasuo.js/caching/)
+- [Logging](https://justadev-afk.github.io/yasuo.js/logging/)
+- [Transport & middleware](https://justadev-afk.github.io/yasuo.js/http-and-middleware/)
+- [Pagination](https://justadev-afk.github.io/yasuo.js/pagination/)
+- [Errors](https://justadev-afk.github.io/yasuo.js/errors/)
+- [Endpoint coverage](https://justadev-afk.github.io/yasuo.js/endpoints/)
+- [Migrating from twisted](https://justadev-afk.github.io/yasuo.js/migrating-from-twisted/)
 
 ## Migrating from twisted
 
-yasuo is a spiritual successor, not a drop-in replacement — the ergonomics are better. The short version: constructor takes a config object, `LolApi`/`TftApi`/`RiotApi` become `yasuo.lol`/`yasuo.tft`/`yasuo.riot`, the `{ response, rateLimits }` envelope becomes the **entity itself** (carrying `.error`/`.http`) that you run with `.execute()`, and encrypted-summoner-id lookups give way to PUUIDs. Full mapping in [the migration guide](https://justadev-afk.github.io/yasuo/migrating-from-twisted/).
+yasuo is a spiritual successor, not a drop-in replacement — the ergonomics are better. The short version: constructor takes a config object, `LolApi`/`TftApi`/`RiotApi` become `yasuo.lol`/`yasuo.tft`/`yasuo.riot`, the `{ response, rateLimits }` envelope becomes the **entity itself** (carrying `.error`/`.http`) that you run with `.execute()`, and encrypted-summoner-id lookups give way to PUUIDs. Full mapping in [the migration guide](https://justadev-afk.github.io/yasuo.js/migrating-from-twisted/).
 
 ## Development
 
@@ -308,7 +308,7 @@ bun run build         # single-file ESM + CJS + d.ts
 bun run docs:serve    # preview the MkDocs site locally
 ```
 
-Unit tests run network-free (inject `MockHttpClient` or a fake `HttpClient`/`fetch`) and are **coverage-gated at 95% line/statement** coverage (currently ~97.5%) via `bunfig.toml`. Conventions for contributors (folder layout, one-declaration-per-file, enum rules) live in [the architecture guide](https://justadev-afk.github.io/yasuo/architecture/).
+Unit tests run network-free (inject `MockHttpClient` or a fake `HttpClient`/`fetch`) and are **coverage-gated at 95% line/statement** coverage (currently ~97.5%) via `bunfig.toml`. Conventions for contributors (folder layout, one-declaration-per-file, enum rules) live in [the architecture guide](https://justadev-afk.github.io/yasuo.js/architecture/).
 
 ## License
 

@@ -2,6 +2,7 @@ import type { CurrentGameInfoDTO } from '../../dto/lol/spectator.dto'
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { CurrentGameEntity } from '../../entities/lol/current-game.entity'
 import { FeaturedGamesEntity } from '../../entities/lol/featured-games.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Region } from '../../enums/region'
 import { ApiError, NotFoundError } from '../../errors'
 import { SingleQuery } from '../../query/single-query'
@@ -11,6 +12,8 @@ import { BaseNamespace, metaFromError } from '../base-namespace'
  * SPECTATOR-V5 methods.
  */
 export class LolSpectatorNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolSpectator
+
   /**
    * The player's live game, or `null` if they are not currently in one.
    *

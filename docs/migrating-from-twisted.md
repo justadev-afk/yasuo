@@ -45,7 +45,7 @@ const riot = new RiotApi(process.env.RIOT_API_KEY)
 
 ```ts
 // AFTER — yasuo
-import { Yasuo } from 'yasuo'
+import { Yasuo } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY })
 // yasuo.lol   — everything LolApi did
@@ -73,7 +73,7 @@ Constants.RegionGroups.EUROPE    // regional routing value
 
 ```ts
 // AFTER
-import { Region, RegionGroup } from 'yasuo'
+import { Region, RegionGroup } from 'yasuo.js'
 Region.KR                        // platform region
 RegionGroup.EUROPE               // regional routing value
 ```
@@ -201,16 +201,16 @@ for await (const id of yasuo.lol.match.streamIds(puuid, RegionGroup.ASIA, { page
 ### Opt-in cache
 
 ```ts
-import { Yasuo, RedisCache } from 'yasuo'
+import { Yasuo, RedisCache } from 'yasuo.js'
 
-const yasuo = new Yasuo({ key, cache: true })                      // in-memory, 60s TTL
+const yasuo = new Yasuo({ key, cache: true })                      // in-memory, per-namespace TTLs
 const y2    = new Yasuo({ key, cache: { store: new RedisCache(redis), ttlMs: 30_000 } })
 ```
 
 ### Leveled logger
 
 ```ts
-import { Yasuo, LogLevel } from 'yasuo'
+import { Yasuo, LogLevel } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key, logLevel: LogLevel.DEBUG })  // or env YASUO_LOG_LEVEL=debug
 ```
@@ -250,7 +250,7 @@ ships a single-file dual **ESM + CJS** build with complete type declarations.
   hierarchy that lands on the result's `.error`:
 
   ```ts
-  import { NotFoundError, RateLimitError } from 'yasuo'
+  import { NotFoundError, RateLimitError } from 'yasuo.js'
 
   const summoner = await yasuo.lol.summoner.byPuuid(puuid, Region.KR).execute()
   if (summoner.error instanceof NotFoundError) { /* 404 */ }

@@ -11,7 +11,7 @@ platform's `fetch`. Inject your own to route through a proxy, use an `undici`
 pool, add instrumentation, or mock the network in tests.
 
 ```ts
-import { Yasuo, type HttpClient, type HttpRequest, type HttpResponse } from 'yasuo'
+import { Yasuo, type HttpClient, type HttpRequest, type HttpResponse } from 'yasuo.js'
 
 const myClient: HttpClient = {
   async send(request: HttpRequest): Promise<HttpResponse> {
@@ -36,7 +36,7 @@ const yasuo = new Yasuo({ key, httpClient: myClient })
 environments without a global `fetch` or to point at a mock:
 
 ```ts
-import { FetchHttpClient } from 'yasuo'
+import { FetchHttpClient } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key, httpClient: new FetchHttpClient(myFetch) })
 ```
@@ -52,7 +52,7 @@ and a `next` handler, calls `next(request)` — optionally with a modified reque
 — to continue the chain, and gets the response back to inspect or replace.
 
 ```ts
-import type { HttpMiddleware } from 'yasuo'
+import type { HttpMiddleware } from 'yasuo.js'
 
 const timing: HttpMiddleware = async (request, next, context) => {
   const started = performance.now()

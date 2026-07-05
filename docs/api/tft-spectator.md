@@ -26,7 +26,7 @@ A player's active (live) TFT game, or `null` if they are not in one.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const game = await yasuo.tft.spectator.active(puuid, Region.KR).execute()
 if (game === null) {
@@ -50,7 +50,7 @@ The list of featured TFT games.
 - **Note** — development API keys often receive `403` from this endpoint.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 // Throw on failure instead of attaching `.error`:
 const featured = await yasuo.tft.spectator

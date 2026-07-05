@@ -27,7 +27,7 @@ registered).
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const players = await yasuo.lol.clash.playersByPuuid(puuid, Region.NA).execute()
 if (players.error) return

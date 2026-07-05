@@ -34,7 +34,7 @@ A page of TFT match ids for a player.
 - **Routing** — `RegionGroup`.
 
 ```ts
-import { RegionGroup } from 'yasuo'
+import { RegionGroup } from 'yasuo.js'
 
 const ids = await yasuo.tft.match
   .idsByPuuid(puuid, RegionGroup.ASIA, { count: 10 })
@@ -53,7 +53,7 @@ A full TFT match by id.
 - **Routing** — `RegionGroup`.
 
 ```ts
-import { RegionGroup } from 'yasuo'
+import { RegionGroup } from 'yasuo.js'
 
 const match = await yasuo.tft.match.get('KR_1234567890', RegionGroup.ASIA).execute()
 if (match.error) return
@@ -76,7 +76,7 @@ A player's recent TFT matches, fetched in full (one request per match id).
 - **Routing** — `RegionGroup`.
 
 ```ts
-import { RegionGroup } from 'yasuo'
+import { RegionGroup } from 'yasuo.js'
 
 const matches = await yasuo.tft.match
   .byPuuid(puuid, RegionGroup.AMERICAS, { count: 5 })
@@ -108,7 +108,7 @@ hydration is heavy, lean on `maxItems`.
 > [Pagination](../pagination.md).
 
 ```ts
-import { RegionGroup } from 'yasuo'
+import { RegionGroup } from 'yasuo.js'
 
 // Most recent 20 matches, paced automatically:
 for await (const match of yasuo.tft.match.streamMatches(puuid, RegionGroup.EUROPE, {

@@ -4,6 +4,7 @@ import type { LeagueStreamOptions } from '../../dto/lol/query.dto'
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { LeagueEntryEntity } from '../../entities/lol/league-entry.entity'
 import { LeagueListEntity } from '../../entities/lol/league-list.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Division, RankedQueue, Tier } from '../../enums/ranked'
 import type { Region } from '../../enums/region'
 import type { CollectionQuery } from '../../query/collection-query'
@@ -16,6 +17,8 @@ const DEFAULT_START_PAGE = 1
  * LEAGUE-V4 methods.
  */
 export class LolLeagueNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolLeague
+
   /**
    * A league by its id.
    *

@@ -18,7 +18,7 @@ special:
     calls in `try` / `catch` if you need to handle CDN failures.
 
 ```ts
-import { Yasuo } from 'yasuo'
+import { Yasuo } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY! })
 

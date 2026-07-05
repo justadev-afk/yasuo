@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 📚 Documentation
-    url: https://justadev-afk.github.io/yasuo/
+    url: https://justadev-afk.github.io/yasuo.js/
     about: Guides, API reference and the migration guide from twisted.
   - name: 💬 Questions & discussion
-    url: https://github.com/justadev-afk/yasuo/discussions
+    url: https://github.com/justadev-afk/yasuo.js/discussions
     about: Ask questions and share ideas — please don't open an issue for support.

@@ -13,9 +13,9 @@ Keep the key out of source control — read it from an environment variable (see
 ## 2. Install
 
 ```bash
-bun add yasuo
+bun add yasuo.js
 # or
-npm install yasuo
+npm install yasuo.js
 ```
 
 yasuo targets **Node 18+** / Bun / Deno and ships a single-file dual **ESM + CJS** build with complete type declarations. It has zero runtime dependencies.
@@ -25,7 +25,7 @@ yasuo targets **Node 18+** / Bun / Deno and ships a single-file dual **ESM + CJS
 The key can be passed as a bare string, inside a config object, or left out entirely to fall back to the `RIOT_API_KEY` environment variable:
 
 ```ts
-import { Yasuo } from 'yasuo'
+import { Yasuo } from 'yasuo.js'
 
 const yasuo = new Yasuo('RGAPI-...')            // bare key string
 const yasuo = new Yasuo({ key: 'RGAPI-...' })   // config object
@@ -53,12 +53,12 @@ Every field on `YasuoConfig` is optional and comes with a production-safe defaul
 | `retry` | `boolean \| RetryOptions` | `true` | Reactive retry policy for `429`/`503` (3 attempts, `retry-after`-aware). |
 | `concurrency` | `number` | `Infinity` | Cap on concurrent in-flight requests. |
 | `httpClient` | `HttpClient` | `fetch`-based | Custom transport. |
-| `cache` | `boolean \| CacheOptions` | off | Response cache; `true` enables an in-memory store (60s TTL). |
+| `cache` | `boolean \| CacheOptions` | off | Response cache; `true` enables an in-memory store with [per-namespace default TTLs](caching.md#per-namespace-defaults). |
 | `logger` | `Logger` | console logger | Custom logger implementation. |
 | `logLevel` | `LogLevel` | `SILENT` | Minimum log level; overridden by `YASUO_LOG_LEVEL`/`LOG_LEVEL`. |
 
 ```ts
-import { Yasuo, LogLevel } from 'yasuo'
+import { Yasuo, LogLevel } from 'yasuo.js'
 
 const yasuo = new Yasuo({
   key: process.env.RIOT_API_KEY,
@@ -72,7 +72,7 @@ const yasuo = new Yasuo({
 Let's resolve a player by their Riot ID (the `gameName#tagLine` shown in-game), then fetch their League of Legends summoner profile.
 
 ```ts
-import { Yasuo, Region, RegionGroup } from 'yasuo'
+import { Yasuo, Region, RegionGroup } from 'yasuo.js'
 
 const yasuo = new Yasuo()
 

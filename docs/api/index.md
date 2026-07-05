@@ -7,7 +7,7 @@ and [Errors](../errors.md) for the shared model, then jump to a namespace below
 for its per-endpoint calls and responses.
 
 ```ts
-import { Yasuo, Region, RegionGroup } from 'yasuo'
+import { Yasuo, Region, RegionGroup } from 'yasuo.js'
 
 const yasuo = new Yasuo({ key: process.env.RIOT_API_KEY })
 ```

@@ -27,7 +27,7 @@ The configuration of every challenge.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const configs = await yasuo.lol.challenges.config(Region.EUW).execute()
 if (configs.error) return
@@ -51,7 +51,7 @@ read it from `.value`.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const result = await yasuo.lol.challenges.percentiles(Region.EUW).execute()
 if (result.error || result.value === null) return
@@ -78,7 +78,7 @@ The configuration of a single challenge.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const config = await yasuo.lol.challenges.configById(101_101, Region.EUW).execute()
 if (config.error) return
@@ -99,7 +99,7 @@ The leaderboard (apex players) for a challenge at a given level.
 - **Routing** — `Region`.
 
 ```ts
-import { Region, ChallengeLevel } from 'yasuo'
+import { Region, ChallengeLevel } from 'yasuo.js'
 
 const board = await yasuo.lol.challenges
   .leaderboards(101_101, ChallengeLevel.CHALLENGER, Region.EUW, 10)
@@ -123,7 +123,7 @@ The percentile distribution of a single challenge, keyed by tier.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const pct = await yasuo.lol.challenges.percentilesById(101_101, Region.EUW).execute()
 if (pct.error) return
@@ -145,7 +145,7 @@ A player's full challenge progress.
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const player = await yasuo.lol.challenges.player(puuid, Region.EUW).execute()
 if (player.error) return

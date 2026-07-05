@@ -24,7 +24,7 @@ Closes #
 - [ ] `bun test test/unit` passes, and new logic has unit tests
 - [ ] New public surface is exported from `src/index.ts` and **JSDoc'd**
 - [ ] Docs updated (`docs/**` and, if relevant, `examples/basic-usage.ts`) — see the
-      [docs-maintenance rule](https://justadev-afk.github.io/yasuo/architecture/)
+      [docs-maintenance rule](https://justadev-afk.github.io/yasuo.js/architecture/)
 - [ ] No new runtime dependencies (yasuo is **zero-dependency**)
 - [ ] No magic strings/numbers — Riot constants reference an `enum`
 

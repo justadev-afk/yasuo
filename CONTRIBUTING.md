@@ -56,7 +56,7 @@ These are enforced in review (and mostly by `biome`/`tsc`):
   `src/index.ts`.
 - **Keep the docs alive.** Any change to the public API must update the guides
   under `docs/` and, where relevant, `examples/basic-usage.ts`, in the *same* PR.
-  The published site at <https://justadev-afk.github.io/yasuo/> is the canonical
+  The published site at <https://justadev-afk.github.io/yasuo.js/> is the canonical
   reference. See [the architecture guide](docs/architecture.md).
 
 More detail on layout and conventions lives in
@@ -72,7 +72,7 @@ structural changes.
 
 ## Reporting bugs / requesting features
 
-Use the [issue templates](https://github.com/justadev-afk/yasuo/issues/new/choose).
+Use the [issue templates](https://github.com/justadev-afk/yasuo.js/issues/new/choose).
 Always redact your API key (`RGAPI-***`) from any snippet.
 
 By contributing, you agree that your contributions are licensed under the

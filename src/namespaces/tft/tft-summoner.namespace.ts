@@ -1,6 +1,7 @@
 import { TFT_ENDPOINTS } from '../../endpoints/tft'
 import { TftSummonerEntity } from '../../entities/tft/tft-summoner.entity'
 import { TftSummonerRef } from '../../entities/tft/tft-summoner-ref'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Region } from '../../enums/region'
 import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
@@ -9,6 +10,8 @@ import { BaseNamespace } from '../base-namespace'
  * TFT-SUMMONER-V1 methods.
  */
 export class TftSummonerNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.TftSummoner
+
   /**
    * Look up a TFT summoner by encrypted summoner id.
    *

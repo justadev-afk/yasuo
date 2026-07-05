@@ -2,6 +2,7 @@ import type { CurrentGameInfoDTO } from '../../dto/lol/spectator.dto'
 import { TFT_ENDPOINTS } from '../../endpoints/tft'
 import { CurrentGameEntity } from '../../entities/lol/current-game.entity'
 import { FeaturedGamesEntity } from '../../entities/lol/featured-games.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Region } from '../../enums/region'
 import { ApiError, NotFoundError } from '../../errors'
 import { SingleQuery } from '../../query/single-query'
@@ -11,6 +12,8 @@ import { BaseNamespace, metaFromError } from '../base-namespace'
  * SPECTATOR-TFT-V5 methods. Shares the spectator payload shape with LoL.
  */
 export class TftSpectatorNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.TftSpectator
+
   /**
    * A player's active (live) TFT game, or `null` if they are not in one.
    *

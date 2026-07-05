@@ -63,6 +63,16 @@ async function resultShape(): Promise<void> {
     .byPuuid('puuid', Region.KR)
     .execute<{ puuid: string; summonerLevel: number }>({ raw: true })
   console.log(typed.summonerLevel)
+
+  // Per-call cache control (scoped to this call's namespace):
+  // force a fresh request but still refresh the cached entry...
+  const fresh = await yasuo.lol.summoner.byPuuid('puuid', Region.KR).execute({ cache: false })
+  console.log(fresh.summonerLevel)
+  // ...or cache this one immutable match for a full day:
+  const longLived = await yasuo.lol.match
+    .get('KR_123', RegionGroup.ASIA)
+    .execute({ cache: { ttlMs: 86_400_000 } })
+  console.log(longLived.metadata.matchId)
 }
 
 // --- Account → summoner → relations (single requests) ------------------------
@@ -135,6 +145,21 @@ async function staticData(): Promise<void> {
   console.log(versions[0], Object.keys(champions.data).length)
 }
 
+// --- Per-namespace cache tuning ----------------------------------------------
+
+function withPerNamespaceCache(): Yasuo {
+  // Keep every namespace's tuned default TTL, but override a couple:
+  return new Yasuo({
+    key: 'RGAPI-x',
+    cache: {
+      namespaces: {
+        'lol.match': { ttlMs: 86_400_000 }, // immutable — cache a full day
+        'lol.spectator': { enabled: false }, // never cache live games
+      },
+    },
+  })
+}
+
 // --- Caching with a custom Redis-compatible client ---------------------------
 
 function withRedis(redis: RedisClientLike): Yasuo {
@@ -195,5 +220,6 @@ export {
   walkAccount,
   withCloudflareKV,
   withMiddleware,
+  withPerNamespaceCache,
   withRedis,
 }

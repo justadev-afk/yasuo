@@ -1,5 +1,6 @@
 import { LOL_ENDPOINTS } from '../../endpoints/lol'
 import { ChampionRotationEntity } from '../../entities/lol/champion-rotation.entity'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { Region } from '../../enums/region'
 import type { SingleQuery } from '../../query/single-query'
 import { BaseNamespace } from '../base-namespace'
@@ -8,6 +9,8 @@ import { BaseNamespace } from '../base-namespace'
  * CHAMPION-V3 methods.
  */
 export class LolChampionNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolChampion
+
   /**
    * The current free champion rotation.
    *

@@ -7,6 +7,7 @@ import { ChallengeConfigEntity } from '../../entities/lol/challenge-config.entit
 import { ChallengePercentilesEntity } from '../../entities/lol/challenge-percentiles.entity'
 import { PlayerChallengesEntity } from '../../entities/lol/player-challenges.entity'
 import type { ValueResult } from '../../entities/value-result'
+import { CacheNamespace } from '../../enums/cache-namespace'
 import type { ChallengeLevel } from '../../enums/challenge'
 import type { Region } from '../../enums/region'
 import type { CollectionQuery } from '../../query/collection-query'
@@ -17,6 +18,8 @@ import { BaseNamespace } from '../base-namespace'
  * LOL-CHALLENGES-V1 methods.
  */
 export class LolChallengesNamespace extends BaseNamespace {
+  protected readonly cacheNamespace = CacheNamespace.LolChallenges
+
   /**
    * The configuration of every challenge.
    *

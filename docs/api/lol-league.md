@@ -27,7 +27,7 @@ queue they've placed in).
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const entries = await yasuo.lol.league.byPuuid(puuid, Region.EUW).execute()
 if (entries.error) return
@@ -77,7 +77,7 @@ One page of the ranked ladder for a given queue, tier and division.
 - **Routing** — `Region`.
 
 ```ts
-import { RankedQueue, Tier, Division, Region } from 'yasuo'
+import { RankedQueue, Tier, Division, Region } from 'yasuo.js'
 
 const page1 = await yasuo.lol.league
   .entries(RankedQueue.SOLO_5x5, Tier.DIAMOND, Division.I, Region.EUW)
@@ -98,7 +98,7 @@ covers the apex tiers (`MASTER`, `GRANDMASTER`, `CHALLENGER`).
 - **Routing** — `Region`.
 
 ```ts
-import { RankedQueue, Tier, Division, Region } from 'yasuo'
+import { RankedQueue, Tier, Division, Region } from 'yasuo.js'
 
 const apex = await yasuo.lol.league
   .expEntries(RankedQueue.SOLO_5x5, Tier.CHALLENGER, Division.I, Region.KR)
@@ -128,7 +128,7 @@ pages on demand, each through the [rate limiter](../rate-limiting.md).
     the loop in `try/catch` — the thrown value is the same [`ApiError`](../errors.md).
 
 ```ts
-import { RankedQueue, Tier, Division, Region } from 'yasuo'
+import { RankedQueue, Tier, Division, Region } from 'yasuo.js'
 
 // Every Diamond I player, paced for you:
 try {
@@ -159,7 +159,7 @@ The Challenger league for a queue.
 - **Routing** — `Region`.
 
 ```ts
-import { RankedQueue, Region } from 'yasuo'
+import { RankedQueue, Region } from 'yasuo.js'
 
 const league = await yasuo.lol.league.challenger(RankedQueue.SOLO_5x5, Region.KR).execute()
 if (league.error) return
@@ -178,7 +178,7 @@ The Grandmaster league for a queue. Identical shape to
 - **Routing** — `Region`.
 
 ```ts
-import { RankedQueue, Region } from 'yasuo'
+import { RankedQueue, Region } from 'yasuo.js'
 
 const gm = await yasuo.lol.league.grandmaster(RankedQueue.SOLO_5x5, Region.EUW).execute()
 if (gm.error) return
@@ -196,7 +196,7 @@ The Master league for a queue. Identical shape to
 - **Routing** — `Region`.
 
 ```ts
-import { RankedQueue, Region } from 'yasuo'
+import { RankedQueue, Region } from 'yasuo.js'
 
 // Opt into throwing instead of inspecting `.error`:
 const master = await yasuo.lol.league
@@ -216,7 +216,7 @@ A single league by its id (any tier — the same shape apex leagues return).
 - **Routing** — `Region`.
 
 ```ts
-import { Region } from 'yasuo'
+import { Region } from 'yasuo.js'
 
 const league = await yasuo.lol.league.byId(leagueId, Region.EUW).execute()
 if (league.error) return
