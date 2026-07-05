@@ -18,7 +18,11 @@ describeLive('lol.match (live)', () => {
     const match = await client().lol.match.get(matchId, MATCH_GROUP).execute()
     expect(match.error).toBeNull()
     expect(match.metadata.matchId).toBe(matchId)
-    expect(match.info.participants.length).toBe(10)
+    // Participant count is mode-dependent (5v5 = 10, Arena = 16, etc.), so assert
+    // the invariant that always holds instead of a fixed number: the detailed
+    // `info.participants` and the `metadata.participants` PUUID list agree.
+    expect(match.info.participants.length).toBeGreaterThan(0)
+    expect(match.info.participants.length).toBe(match.metadata.participants.length)
 
     // Traverse the entity relation back to the timeline (routing reused).
     const timeline = await match.timeline().execute()
