@@ -1,6 +1,6 @@
 {
   "name": "yasuo.js",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "The modern, fully-typed, zero-dependency Riot Games API client for TypeScript. The evolution of Twisted, with a proactive rate limiter, lazy relations and async pagination.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -65,7 +65,7 @@
     "type": "git",
     "url": "git+https://github.com/justadev-afk/yasuo.js.git"
   },
-  "homepage": "https://docs.yasuo.gg/",
+  "homepage": "https://docs.yasuo.gg",
   "bugs": {
     "url": "https://github.com/justadev-afk/yasuo.js/issues"
   },

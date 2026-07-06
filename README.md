@@ -1,15 +1,12 @@
-# yasuo
+# Yasuo.js
 
 **A modern, zero-dependency TypeScript client for the Riot Games API** — League of Legends, Teamfight Tactics and the Riot Account API.
 
-> [!TIP]
-> **See it in production — [yasuo.gg](https://yasuo.gg).** An open-source League
-> of Legends summoner-profile site — profiles, ranked, match history, champion
-> mastery and a public JSON API — built **entirely** on this library, running on
-> Cloudflare Workers. Live proof that yasuo works in a real app.
-> Source: [github.com/justadev-afk/yasuo.gg](https://github.com/justadev-afk/yasuo.gg).
+Yasuo is the evolution of [twisted](https://www.npmjs.com/package/twisted). It keeps everything that made twisted pleasant — a single client, typed responses, rate-limit info attached to every result — and rebuilds it around a Supabase-style **query builder**, lazy relation-aware chaining, a pluggable cache, a leveled logger and async iterators, all with **no runtime dependencies**.
 
-> yasuo is the evolution of [twisted](https://github.com/justadev-afk/twisted). It keeps everything that made twisted pleasant — a single client, typed responses, rate-limit info attached to every result — and rebuilds it around a Supabase-style **query builder**, lazy relation-aware chaining, a pluggable cache, a leveled logger and async iterators, all with **no runtime dependencies**.
+> **🎮 Live demo — [www.yasuo.gg](https://www.yasuo.gg)** · [source on GitHub](https://github.com/justadev-afk/yasuo.gg)
+>
+> An open-source League of Legends summoner-profile site — profiles, ranked, match history, champion mastery and a public JSON API — built **entirely** on this library, running on Cloudflare Workers. Live proof yasuo works in a real app.
 
 ```ts
 import { Yasuo, Region, RegionGroup } from 'yasuo.js'
@@ -36,19 +33,20 @@ console.log(matches.http.rateLimits.app)  // rate-limit budget travels with ever
 
 ## Why yasuo?
 
-| | twisted | **yasuo** |
-| --- | --- | --- |
-| Runtime dependencies | a few | **zero** |
-| Response shape | `{ response, rateLimits }` envelope | the **entity itself**, carrying `.error` + `.http` — never throws for API errors |
-| Requests | eager method calls | **query builders** — `.byPuuid(…)` builds, `.execute()` runs |
-| Chaining | manual (fetch summoner → fetch matches) | `account.summoner(r).matchIds().execute()` — **only the final request runs** |
-| Rate limiting | reactive (retry on 429) | **reactive by default**, opt-in **proactive** pacing under Riot's limits |
-| Transport | fixed | **pluggable `HttpClient`** + stackable **axios-style middleware** (global & per-service) |
-| Pagination | manual page loops | **async iterators** (`for await`), start from any page |
-| Caching | — | pluggable **in-memory / Redis** cache |
-| Logging | — | leveled logger (`debug`/`info`/`warn`/`error`), env-driven |
-| Magic strings | some | **none** — everything is an enum |
-| Module format | CJS | **dual ESM + CJS**, single-file, fully typed |
+| | twisted | leaguejs | **yasuo** |
+| --- | --- | --- | --- |
+| Runtime dependencies | a few | **8** (`request`, `bluebird`, …) | **zero** |
+| TypeScript | typed | **none shipped** (plain JS) | **first-class**, fully typed |
+| Response shape | `{ response, rateLimits }` envelope | raw DTO, **rejects** on API errors | the **entity itself**, carrying `.error` + `.http` — never throws for API errors |
+| Requests | eager method calls | eager promise methods | **query builders** — `.byPuuid(…)` builds, `.execute()` runs |
+| Chaining / relations | manual (fetch summoner → fetch matches) | manual | `account.summoner(r).matchIds().execute()` — **only the final request runs** |
+| Rate limiting | reactive (retry on 429) | proactive (SPREAD), built-in | **reactive by default**, opt-in **proactive** pacing under Riot's limits |
+| Transport | fixed | fixed (deprecated `request`) | **pluggable `HttpClient`** + stackable **axios-style middleware** (global & per-service) |
+| Pagination | manual page loops | manual | **async iterators** (`for await`), start from any page |
+| Caching | — | in-memory (`node-cache`) | pluggable **in-memory / Redis** cache |
+| Logging | — | — | leveled logger (`debug`/`info`/`warn`/`error`), env-driven |
+| Magic strings | some | strings (`'euw1'`, …) | **none** — everything is an enum |
+| Module format | CJS | CJS | **dual ESM + CJS**, single-file |
 
 ---
 
