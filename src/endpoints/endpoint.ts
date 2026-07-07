@@ -1,4 +1,5 @@
 import type { Game } from '../enums/game'
+import type { HttpMethod } from '../enums/http'
 
 /**
  * Default base-URL template. `{routing}` is the platform region or region group
@@ -25,10 +26,17 @@ export type PathParams = Record<string, string | number>
 export interface Endpoint {
   /** Unique, stable identifier used as the method rate-limit key. */
   readonly id: string
-  /** Game path segment (`lol`, `tft`, `riot`). */
+  /** Game path segment (`lol`, `tft`, `val`, `lor`, `riot`) — also the API-key selector. */
   readonly game: Game
   /** Path template after the game segment, e.g. `summoner/v4/summoners/by-puuid/:puuid`. */
   readonly path: string
+  /**
+   * HTTP method. Defaults to `GET` when omitted — the vast majority of Riot
+   * endpoints. `POST`/`PUT` endpoints (e.g. Tournament-V5) set this explicitly
+   * and carry a JSON body via the request options; only `GET` responses are
+   * cached.
+   */
+  readonly method?: HttpMethod
 }
 
 /** Serialise query params, skipping nullish values and expanding arrays. */

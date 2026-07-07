@@ -1,7 +1,9 @@
 import {
+  type ResolvedApiKeys,
   type ResolvedCacheOptions,
   type ResolvedNamespaceCache,
   type ResolvedRetryOptions,
+  resolveApiKeys,
   resolveBaseUrl,
   resolveCacheOptions,
   resolveLogger,
@@ -26,6 +28,9 @@ import { Semaphore, sleep } from '../util'
 
 const MS_PER_SECOND = 1000
 
+/** Media type sent with a JSON request body. */
+const JSON_CONTENT_TYPE = 'application/json'
+
 /** Options for a single {@link RequestExecutor.request} call. */
 export interface RequestOptions {
   /** Values for the endpoint's `:placeholder` path segments. */
@@ -46,6 +51,12 @@ export interface RequestOptions {
   readonly cacheNamespace?: CacheNamespace
   /** Per-call cache override, forwarded from `execute({ cache })`. */
   readonly cache?: boolean | ExecuteCacheOptions
+  /**
+   * JSON request body for a `POST`/`PUT` endpoint. Ignored for `GET`. When set,
+   * a `content-type: application/json` header is added and the response is never
+   * cached.
+   */
+  readonly body?: unknown
 }
 
 /** The raw data + metadata produced by an executed request. */
@@ -71,16 +82,14 @@ export interface Fetched<T> {
  * 8. Otherwise throw the most specific {@link ApiError}.
  */
 export class RequestExecutor {
-  /** Whether an API key is configured. */
-  get hasKey(): boolean {
-    return this.key.length > 0
-  }
-
   private readonly baseUrl: string
   private readonly cache: CacheStore | null
   private readonly cacheOptions: ResolvedCacheOptions
   private readonly httpClient: HttpClient
-  private readonly key: string
+  /** Stable, non-secret fingerprint (`k0`, `k1`, …) per distinct resolved key. */
+  private readonly keyFingerprints: ReadonlyMap<string, string>
+  /** The concrete API key each {@link Game} signs its requests with (`''` = none). */
+  private readonly keys: ResolvedApiKeys
   private readonly logger: Logger
   private readonly middleware: HttpMiddleware[]
   private readonly rateLimiter: RateLimiter
@@ -88,7 +97,8 @@ export class RequestExecutor {
   private readonly semaphore: Semaphore
 
   constructor(config: YasuoConfig) {
-    this.key = config.key ?? readEnvKey()
+    this.keys = resolveApiKeys(config)
+    this.keyFingerprints = buildKeyFingerprints(this.keys)
     this.baseUrl = resolveBaseUrl(config.baseUrl)
     this.rateLimiter = new RateLimiter(resolveRateLimiterOptions(config.rateLimit))
     this.retry = resolveRetryOptions(config.retry)
@@ -106,9 +116,9 @@ export class RequestExecutor {
    * @typeParam T - Expected shape of the response body.
    * @param routing - Platform region or region-group value for the host.
    * @param endpoint - The endpoint to call.
-   * @param options - Path/query params and an optional abort signal.
+   * @param options - Path/query params, request body and an optional abort signal.
    * @returns The parsed payload and its {@link ResponseMeta}.
-   * @throws {ApiKeyMissingError} If no API key is configured.
+   * @throws {ApiKeyMissingError} If no API key is configured for the endpoint's product.
    * @throws {ApiError} For any non-2xx response once retries are exhausted.
    */
   async request<T>(
@@ -116,9 +126,13 @@ export class RequestExecutor {
     endpoint: Endpoint,
     options: RequestOptions = {},
   ): Promise<Fetched<T>> {
-    if (!this.hasKey) {
-      throw new ApiKeyMissingError()
+    const key = this.keys[endpoint.game]
+    if (key.length === 0) {
+      throw new ApiKeyMissingError(
+        `No Riot API key configured for the "${endpoint.game}" product. Pass \`keys.${endpoint.game}\` or a shared \`key\` to the Yasuo constructor, or set the RIOT_API_KEY environment variable.`,
+      )
     }
+    const method = endpoint.method ?? HttpMethod.GET
     const { url, host } = resolveRequest(
       this.baseUrl,
       routing,
@@ -127,7 +141,7 @@ export class RequestExecutor {
       options.query,
     )
 
-    const cacheControl = this.resolveCacheControl(options)
+    const cacheControl = this.resolveCacheControl(options, method)
     if (this.cache && cacheControl.read) {
       const cached = await this.cache.get(url)
       if (cached) {
@@ -136,10 +150,15 @@ export class RequestExecutor {
       }
     }
 
-    const appKey = host
+    // The application limit is per key, so isolate buckets by key fingerprint —
+    // distinct keys on the same host never share an app bucket.
+    const appKey = `${this.keyFingerprints.get(key) ?? ''}:${host}`
     const methodKey = `${host}:${endpoint.id}`
-    const headers = { [HttpHeader.RIOT_TOKEN]: this.key }
-    this.logger.debug(`GET ${url}`)
+    const headers: Record<string, string> = { [HttpHeader.RIOT_TOKEN]: key }
+    if (options.body !== undefined) {
+      headers[HttpHeader.CONTENT_TYPE] = JSON_CONTENT_TYPE
+    }
+    this.logger.debug(`${method} ${url}`)
 
     const middleware = options.middleware
       ? [...this.middleware, ...options.middleware]
@@ -157,7 +176,7 @@ export class RequestExecutor {
       let response: HttpResponse
       try {
         response = await this.semaphore.run(() =>
-          handler({ url, method: HttpMethod.GET, headers, signal: options.signal }),
+          handler({ url, method, headers, signal: options.signal, body: options.body }),
         )
       } catch (cause) {
         this.logger.error(`request errored ${url}: ${String(cause)}`)
@@ -255,12 +274,16 @@ export class RequestExecutor {
    * response is still written back (a force-refresh). `true`/`{ enabled: true }`
    * forces both, even for a namespace whose caching is disabled.
    */
-  private resolveCacheControl(options: RequestOptions): {
+  private resolveCacheControl(
+    options: RequestOptions,
+    method: HttpMethod,
+  ): {
     read: boolean
     write: boolean
     ttlMs: number
   } {
-    if (!this.cache) {
+    // Only GET responses are cacheable; POST/PUT are always fresh.
+    if (!this.cache || method !== HttpMethod.GET) {
       return { read: false, write: false, ttlMs: 0 }
     }
     const nsKey = options.cacheNamespace
@@ -309,9 +332,18 @@ function networkError(url: string, method: string, cause: unknown): ApiError {
   )
 }
 
-/** Read the API key from the environment when not passed explicitly. */
-function readEnvKey(): string {
-  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-    ?.env
-  return env?.RIOT_API_KEY ?? ''
+/**
+ * Assign each distinct, non-empty resolved key a stable, non-secret fingerprint
+ * (`k0`, `k1`, …) so the rate limiter can isolate app buckets per key without
+ * ever holding the key material in a map key. Products sharing one key share a
+ * fingerprint (and thus their app rate-limit bucket).
+ */
+export function buildKeyFingerprints(keys: ResolvedApiKeys): ReadonlyMap<string, string> {
+  const fingerprints = new Map<string, string>()
+  for (const key of Object.values(keys)) {
+    if (key.length > 0 && !fingerprints.has(key)) {
+      fingerprints.set(key, `k${fingerprints.size}`)
+    }
+  }
+  return fingerprints
 }

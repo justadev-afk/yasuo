@@ -38,6 +38,8 @@ export enum HttpStatus {
 export enum HttpHeader {
   /** Request header carrying the Riot API key. */
   RIOT_TOKEN = 'x-riot-token',
+  /** Request media type, set to `application/json` when a body is sent. */
+  CONTENT_TYPE = 'content-type',
   /** The application rate limits currently applied to the key. */
   APP_RATE_LIMIT = 'x-app-rate-limit',
   /** The number of app-scoped requests made in the current windows. */

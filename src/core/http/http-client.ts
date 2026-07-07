@@ -6,6 +6,11 @@ export interface HttpRequest {
   readonly method: HttpMethod
   readonly headers: Readonly<Record<string, string>>
   readonly signal?: AbortSignal
+  /**
+   * JSON request body for `POST`/`PUT` endpoints. Serialised with
+   * `JSON.stringify` by the default transport; `undefined` for `GET` requests.
+   */
+  readonly body?: unknown
 }
 
 /** A normalised HTTP response with headers lower-cased and the body parsed. */
@@ -65,6 +70,7 @@ export class FetchHttpClient implements HttpClient {
       method: request.method,
       headers: request.headers as Record<string, string>,
       signal: request.signal,
+      body: request.body === undefined ? undefined : JSON.stringify(request.body),
     })
     return {
       status: response.status,

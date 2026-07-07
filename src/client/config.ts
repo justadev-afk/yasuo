@@ -6,6 +6,7 @@ import { createConsoleLogger, type Logger, type LogLevel, resolveLogLevel } from
 import type { RateLimiterOptions } from '../core/rate-limit/rate-limiter'
 import { DEFAULT_BASE_URL } from '../endpoints/endpoint'
 import { CacheNamespace, type CacheNamespaceKey } from '../enums/cache-namespace'
+import { Game } from '../enums/game'
 
 /**
  * Reactive retry behaviour, applied when Riot returns `429`/`503` even after
@@ -82,15 +83,58 @@ export interface CacheOptions {
 }
 
 /**
+ * Per-product API keys, keyed by {@link Game} — the product a request belongs to
+ * (its URL path segment). Riot recommends registering a separate product, and
+ * therefore a separate key, per game; map each product to its key here and yasuo
+ * signs every request with the key for that request's game automatically.
+ *
+ * Every entry is optional and the string form is interchangeable with the enum
+ * (`{ lol: '…' }` or `{ [Game.LOL]: '…' }`). `riot` is the shared Account API.
+ *
+ * @see {@link YasuoConfig.keys} for the full resolution order.
+ */
+export type ApiKeyMap = Partial<Record<`${Game}`, string>>
+
+/**
  * Configuration accepted by the {@link Yasuo} constructor. Every field is
  * optional; sensible, production-safe defaults are applied.
  */
 export interface YasuoConfig {
   /**
-   * Riot Games API key. Falls back to the `RIOT_API_KEY` environment variable
-   * when omitted.
+   * Shared Riot Games API key, used for any product without a dedicated
+   * {@link YasuoConfig.keys} entry. Falls back to the `RIOT_API_KEY` environment
+   * variable when omitted.
    */
   key?: string
+  /**
+   * Per-product API keys (see {@link ApiKeyMap}). Riot advises one product/key
+   * per game; set them here to keep each product's traffic — and its rate-limit
+   * budget — isolated. Distinct keys get independent rate-limit buckets.
+   *
+   * The key for a given request is resolved in this order:
+   * 1. `keys[game]` — the product's explicit key;
+   * 2. `RIOT_<GAME>_API_KEY` env var (`RIOT_LOL_API_KEY`, `RIOT_TFT_API_KEY`,
+   *    `RIOT_VAL_API_KEY`, `RIOT_LOR_API_KEY`, `RIOT_ACCOUNT_API_KEY`);
+   * 3. the shared {@link YasuoConfig.key};
+   * 4. the `RIOT_API_KEY` env var.
+   *
+   * The Account API (`riot`) additionally borrows any configured product key as
+   * a last resort, since Account-V1 accepts any valid Riot key. When no key
+   * resolves for a request's product, an `ApiKeyMissingError` is thrown.
+   *
+   * @example
+   * ```ts
+   * new Yasuo({
+   *   keys: {
+   *     lol: process.env.RIOT_LOL_KEY,
+   *     tft: process.env.RIOT_TFT_KEY,
+   *     val: process.env.RIOT_VAL_KEY,
+   *   },
+   *   key: process.env.RIOT_API_KEY, // shared fallback for lor + account
+   * })
+   * ```
+   */
+  keys?: ApiKeyMap
   /**
    * Base-URL template with `{routing}` and `{game}` placeholders. Override to
    * route through a rate-limiting proxy. Defaults to {@link DEFAULT_BASE_URL}.
@@ -258,4 +302,55 @@ export function resolveLogger(config: YasuoConfig): Logger {
 /** Resolve the base-URL template, falling back to Riot's default host. */
 export function resolveBaseUrl(baseUrl: string | undefined): string {
   return baseUrl ?? DEFAULT_BASE_URL
+}
+
+/** Fully-resolved per-product keys: the concrete key each {@link Game} uses (`''` = none). */
+export type ResolvedApiKeys = Readonly<Record<Game, string>>
+
+/** Products that can lend their key to the Account API, in stable precedence order. */
+const BORROWABLE_PRODUCTS: readonly Game[] = [Game.LOL, Game.TFT, Game.VAL, Game.LOR]
+
+/** Environment-variable name holding each product's dedicated key. */
+const PRODUCT_ENV_VAR: Readonly<Record<Game, string>> = {
+  [Game.LOL]: 'RIOT_LOL_API_KEY',
+  [Game.TFT]: 'RIOT_TFT_API_KEY',
+  [Game.VAL]: 'RIOT_VAL_API_KEY',
+  [Game.LOR]: 'RIOT_LOR_API_KEY',
+  [Game.RIOT]: 'RIOT_ACCOUNT_API_KEY',
+}
+
+/** Read an environment variable, returning `''` when unset or unavailable. */
+function readEnv(name: string): string {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+    ?.env
+  return env?.[name] ?? ''
+}
+
+/**
+ * Resolve the concrete API key each {@link Game} will use, folding the per-product
+ * {@link YasuoConfig.keys}, per-product environment variables, the shared
+ * {@link YasuoConfig.key}, and `RIOT_API_KEY` — in that precedence — into a flat
+ * table. An empty string means no key is configured for that product (a request
+ * for it throws `ApiKeyMissingError`).
+ *
+ * The Account API (`riot`) additionally borrows the first configured product key
+ * (LoL → TFT → VAL → LoR) as a last resort, since Account-V1 accepts any valid
+ * Riot key.
+ */
+export function resolveApiKeys(config: YasuoConfig): ResolvedApiKeys {
+  // An explicit config value (even `''`) suppresses the env read at its level —
+  // `key: ''` means "no key", never "read RIOT_API_KEY". Empty strings only fall
+  // through *between* levels (product → shared), hence `??` here but `||` below.
+  const shared = config.key ?? readEnv('RIOT_API_KEY')
+  // A product's own key: explicit config first, then its dedicated env var.
+  const dedicated = (game: Game): string => config.keys?.[game] ?? readEnv(PRODUCT_ENV_VAR[game])
+
+  const resolved = {} as Record<Game, string>
+  for (const game of Object.values(Game)) {
+    resolved[game] = dedicated(game) || shared
+  }
+  if (!resolved[Game.RIOT]) {
+    resolved[Game.RIOT] = BORROWABLE_PRODUCTS.map(dedicated).find((key) => key.length > 0) ?? ''
+  }
+  return resolved
 }
