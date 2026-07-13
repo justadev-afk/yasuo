@@ -74,7 +74,7 @@
     "@biomejs/biome": "^2.5.2",
     "@types/bun": "latest",
     "tsup": "^8.3.5",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "typescript": "^5"
