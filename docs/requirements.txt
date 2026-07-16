@@ -1,9 +1,9 @@
 # Pinned toolchain for building the MkDocs site (used by CI and `mkdocs serve`).
-# NOTE: pymdown-extensions is pinned to 10.21.3 because 10.11.2 silently fails
-# to process ```fenced``` code blocks against Markdown 3.8+ (they render as
-# literal text with no highlighting). Markdown is pinned too so CI can't drift
-# onto an incompatible combo.
+# NOTE: pymdown-extensions is pinned to 11.0.1 because older releases (≤10.11.2)
+# silently fail to process ```fenced``` code blocks against Markdown 3.8+ (they
+# render as literal text with no highlighting). Markdown is pinned too so CI
+# can't drift onto an incompatible combo.
 mkdocs==1.6.1
 mkdocs-material==9.7.6
-pymdown-extensions==10.21.3
-Markdown==3.9
+pymdown-extensions==11.0.1
+Markdown==3.10.2
